@@ -50,14 +50,18 @@ public:
 	{
 		return m_bodies[0]->getLinearVelocity();
 	}
+	float getBodyAngle ()
+	{
+		return 0.0;//m_bodies[0]->getCenterOfMassTransform();
+	}
 
 	// CONSTRUCTOR
 	
-	TestRig (btDynamicsWorld* ownerWorld, const btVector3& positionOffset, bool bFixed)
-		: m_ownerWorld (ownerWorld)
+	TestRig (btDynamicsWorld* ownerWorld) : m_ownerWorld (ownerWorld)
 	{
 		int ii;
 		btVector3 vUp(0, 1, 0);
+		btVector3 pos(0,0.5,0);
 
 		// Setup geometry
 		float fBodySize  = 0.25f;
@@ -77,19 +81,14 @@ public:
 		float fHeight = 0.5;
 		btTransform offset;
 		offset.setIdentity();
-		offset.setOrigin(positionOffset);		
+		offset.setOrigin(pos);		
 
 		// root
 		btVector3 vRoot = btVector3(btScalar(0.), btScalar(fHeight), btScalar(0.));
 		btTransform transform;
 		transform.setIdentity();
 		transform.setOrigin(vRoot);
-		if (bFixed)
-		{
-			m_bodies[0] = localCreateRigidBody(btScalar(0.), offset*transform, m_shapes[0]);
-		} else {
-			m_bodies[0] = localCreateRigidBody(btScalar(1.), offset*transform, m_shapes[0]);
-		}
+		m_bodies[0] = localCreateRigidBody(btScalar(1.), offset*transform, m_shapes[0]);
 		// legs
 		for (ii=0; ii<NUM_LEGS; ii++)
 		{

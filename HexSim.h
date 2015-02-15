@@ -38,6 +38,7 @@ public:
 	TestRig* getRig();
 	void computeStats (btScalar timeStep);
 	double getFitness ();
+	void reset();
 
 	double fitness;
 	bool converged;
@@ -47,7 +48,7 @@ public:
 		exitPhysics();
 	}
 
-	void spawnTestRig(const btVector3& startOffset, bool bFixed);
+	void spawnTestRig();
 
 	virtual void clientMoveAndDisplay();
 

@@ -9,12 +9,19 @@
 #define MAX_TORQUE 0.5
 
 // brain
-#define MIN_HISTORY 1
-#define MIN_LAYERS 1
-#define MAX_LAYERS 5
+#define MIN_HISTORY 2
+#define MIN_LAYERS 2
+#define MIN_NODES 7
+#define MAX_LAYERS 8
 #define MAX_NODES 150
 #define MAX_HISTORY 10
 #define HISTORY_SKIP 3
 
 // analysis
+#define GEN_SIZE 30
 #define STATS_SKIP 20
+
+// generation fractions
+#define GEN_RANDOM 0.2
+#define GEN_CLONES 0.8
+#define GEN_BABIES 0.0

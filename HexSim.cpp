@@ -60,19 +60,19 @@ void HexSim::computeStats (btScalar timeStep)
 	vel = rig->getBodyVelocity();
 
 	// compute update to fitness
-	fitness += sqrt(pow(vel.getX(),2.0)+pow(vel.getZ(),2.0));
+//	fitness += sqrt(pow(vel.getX(),2.0)+pow(vel.getZ(),2.0));
+	fitness += 0.01 * pos.getX() * vel.getX();
+
 
 	// only print stats every now and then
 	if (iter % STATS_SKIP == 0)
 	{
 		
-
 		// check convergence
 		if (vel.length() < 0.01)
-		{
-			fitness += pos.length()*100;
 			converged = true;
-		}
+		if (pos.getY() < 0.35)
+			converged = true;
 	}
 
 	// store values for next stats check
@@ -83,7 +83,7 @@ void HexSim::computeStats (btScalar timeStep)
 
 double HexSim::getFitness ()
 {
-	return rig->getBodyPosition().getX();
+	return fitness;
 }
 
 TestRig* HexSim::getRig ()
@@ -140,19 +140,25 @@ void HexSim::initPhysics()
 	}
 
 	// Spawn one ragdoll
-	btVector3 startOffset(0.0,0.5,0);
-	spawnTestRig(startOffset, false);
+	spawnTestRig();
 
 	clientResetScene();		
 }
 
 
-void HexSim::spawnTestRig(const btVector3& startOffset, bool bFixed)
+void HexSim::spawnTestRig()
 {
-	rig = new TestRig(m_dynamicsWorld, startOffset, bFixed);
+	rig = new TestRig(m_dynamicsWorld);
 }
 
-
+void HexSim::reset ()
+{
+	delete rig;
+	converged = false;
+	currtime = 0.0;
+	fitness = 0.0;
+	rig = new TestRig(m_dynamicsWorld);
+}
 
 
 void HexSim::setMotorTargets(btScalar deltaTime)
