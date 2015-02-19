@@ -32,6 +32,7 @@ class TestRig
 		btDefaultMotionState* myMotionState = new btDefaultMotionState(startTransform);
 		btRigidBody::btRigidBodyConstructionInfo rbInfo(mass,myMotionState,
 				shape,localInertia);
+		rbInfo.m_friction = 1.0;
 		btRigidBody* body = new btRigidBody(rbInfo);
 
 		m_ownerWorld->addRigidBody(body);
@@ -52,7 +53,7 @@ public:
 	}
 	float getBodyAngle ()
 	{
-		return 0.0;//m_bodies[0]->getCenterOfMassTransform();
+		return 0.0;//m_bodies[0]->getOrientation();
 	}
 
 	// CONSTRUCTOR
@@ -61,24 +62,24 @@ public:
 	{
 		int ii;
 		btVector3 vUp(0, 1, 0);
-		btVector3 pos(0,0.5,0);
+		btVector3 pos(0,0.15,0);
 
 		// Setup geometry
 		float fBodySize  = 0.25f;
-		float fLegLength = 0.45f;
-		float fForeLegLength = 0.75f;
+		float fLegLength = 0.15f;
+		float fForeLegLength = 0.15f;
 		
 		// main body shape
-		m_shapes[0] = new btCylinderShape(btVector3(0.2,0.1,0.0));
+		m_shapes[0] = new btCylinderShape(btVector3(0.2,0.05,0.0));
 		// add legs
 		for (ii=0; ii<NUM_LEGS; ii++)
 		{
-			m_shapes[2*ii+1] = new btCapsuleShape(btScalar(0.10), btScalar(fLegLength));
-			m_shapes[2*ii+2] = new btCapsuleShape(btScalar(0.08), btScalar(fForeLegLength));
+			m_shapes[2*ii+1] = new btCapsuleShape(btScalar(0.05), btScalar(fLegLength));
+			m_shapes[2*ii+2] = new btCapsuleShape(btScalar(0.04), btScalar(fForeLegLength));
 		}
 
 		// Setup rigid bodies
-		float fHeight = 0.5;
+		float fHeight = 0.15;
 		btTransform offset;
 		offset.setIdentity();
 		offset.setOrigin(pos);		
@@ -104,12 +105,12 @@ public:
 			btVector3 vToBone = (vBoneOrigin - vRoot).normalize();
 			btVector3 vAxis = vToBone.cross(vUp);			
 			transform.setRotation(btQuaternion(vAxis, M_PI_2));
-			m_bodies[1+2*ii] = localCreateRigidBody(btScalar(1.), offset*transform, m_shapes[1+2*ii]);
+			m_bodies[1+2*ii] = localCreateRigidBody(btScalar(0.5), offset*transform, m_shapes[1+2*ii]);
 
 			// shin
 			transform.setIdentity();
 			transform.setOrigin(btVector3(btScalar(fCos*(fBodySize+fLegLength)), btScalar(fHeight-0.5*fForeLegLength), btScalar(fSin*(fBodySize+fLegLength))));
-			m_bodies[2+2*ii] = localCreateRigidBody(btScalar(1.), offset*transform, m_shapes[2+2*ii]);
+			m_bodies[2+2*ii] = localCreateRigidBody(btScalar(0.5), offset*transform, m_shapes[2+2*ii]);
 		}
 
 		// Setup some damping on the m_bodies

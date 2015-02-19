@@ -5,6 +5,9 @@ using namespace std;
 #include <iostream>
 #include <random>
 #include <string.h>
+#include <algorithm>
+#include <iostream>
+#include <fstream>
 #include "tuning.h"
 
 #define NUM_INPUTS NUM_LEGS*2
@@ -12,7 +15,6 @@ using namespace std;
 
 // TODO:
 // save / load brain from file
-// clone organism ( w/ mutation rate )
 // combine two organisms to form new organism (baby making)
 
 class organism
@@ -20,6 +22,7 @@ class organism
 public:
 	double fitness;
 	long iter;
+	int generation;
 	// data in/out:
 	float *inputs;
 	float *outputs;
@@ -54,6 +57,7 @@ public:
 		{
 			initRandomSize();
 			randomizeCoefs();
+			generation = 0;
 		}
 	}
 
@@ -87,13 +91,34 @@ public:
 		}
 	}
 
-	size_t getHash ()
+	void saveToFile (const char *fname)
 	{
-		int ii, offset;
+		size_t size;
 		char *buffer;
-		string str;
-		size_t ret, si, sf, size;
-		hash<string> str_hash;
+		ofstream file;
+
+		buffer = packData(&size);
+
+		cout << "Saving size " << size << " to " << fname << endl;
+
+		file.open(fname, ios::out | ios::binary);
+		file.write(buffer,size*sizeof(char));
+		file.close();
+
+		delete [] buffer;
+	}
+
+	void readFromFile (char *fname)
+	{
+		// take a file, read size of brain
+		// allocate space, read in coefs
+	}
+
+	char *packData (size_t *s)
+	{
+		char *buffer;
+		size_t si, sf, size;
+		int ii, ij, offset;
 
 		// make room for info
 		si = sizeof(int);
@@ -101,7 +126,10 @@ public:
 		size = si*2 + si*numlayers
 			+ sf*(NUM_INPUTS*numhistory+1)*numnodes[0]
 			+ sf*((numnodes[numlayers-1]+1)*NUM_OUTPUTS);
+		for (ii=0; ii<numlayers-1; ii++)
+			size += sf*(numnodes[ii+1])*(numnodes[ii]+1);
 		buffer = new char [size];
+		*s = size;
 
 		// load info into buffer
 		offset = 0;
@@ -123,6 +151,27 @@ public:
 			memcpy(buffer+offset,coefs_output[ii],sf*(numnodes[numlayers-1]+1));
 			offset += sf*(numnodes[numlayers-1]+1);
 		}
+		// copy middle coefs
+		for (ii=0; ii<numlayers-1; ii++)
+		{
+			for (ij=0; ij<numnodes[ii+1]; ij++)
+			{
+				memcpy(buffer+offset,coefs[ii][ij],sf*(numnodes[ii]+1));
+				offset += sf*(numnodes[ii]+1);
+			}
+		}
+
+		return buffer;
+	}
+
+	size_t getHash ()
+	{
+		char *buffer;
+		string str;
+		size_t ret, size;
+		hash<string> str_hash;
+
+		buffer = packData(&size);
 
 		// compute hash
 		str = buffer;
@@ -258,7 +307,7 @@ public:
 		if (alloc)
 		{
 		// initialize coefs randomly
-		std::normal_distribution<float> dist_norm(0.0, 20.0);
+		std::normal_distribution<float> dist_norm(0.0, 50.0);
 		for (ii=0; ii<numnodes[0]; ii++)
 			for (ij=0; ij<NUM_INPUTS*numhistory+1; ij++)
 				coefs_input[ii][ij] = dist_norm(eng);
@@ -273,6 +322,191 @@ public:
 		}
 	}
 
+	// pick one of two values
+	template<class type> double pickValue (type a, type b, double bias)
+	{
+		std::mt19937 eng((std::random_device())());
+
+		binomial_distribution<int> dist(1,bias);
+
+		if (dist(eng)) return a;
+		return b;
+	}
+
+	template<class type> double joinValue (type a, type b, double bias, double mutation)
+	{
+		vector<double> interval, weight;
+		double val;
+		std::mt19937 eng((std::random_device())());
+
+		if (a == b)
+		{
+			val = (double)a;
+			interval.resize(3);
+			weight.resize(3);
+			weight[0] = 0.0;
+			weight[1] = 1.0;
+			weight[2] = 0.0;
+			interval[0] = val*(1.0-mutation);
+			interval[1] = val;
+			interval[2] = val*(1.0+mutation);
+		} else {
+			interval.resize(5);
+			weight.resize(5);
+			weight[0] = 0.0;
+			weight[1] = 1.0;
+			weight[2] = bias;
+			weight[3] = 1.0;
+			weight[4] = 0.0;
+			interval[0] = min(a,b)*(1.0-mutation);
+			interval[1] = min(a,b);
+			interval[2] = 0.5*(a+b);
+			interval[3] = max(a,b);
+			interval[4] = max(a,b)*(1.0+mutation);
+		}
+
+		piecewise_linear_distribution<double> 
+			dist(interval.begin(), interval.end(), weight.begin());
+
+		return dist(eng);
+	}
+
+	organism* makeBabyWith (organism *mate, float mutation)
+	{
+		int ii, ij, ik;
+		int common, common2, common3;
+		int totalcoefs, numcrossover, ind;
+		bool takefromA;
+		vector<int> co;
+		organism *ret;
+
+		ret = new organism(false);
+		ret->generation = max(generation,mate->generation)+1;
+		std::mt19937 eng((std::random_device())());
+
+		ret->numlayers = (int)round(joinValue(numlayers,mate->numlayers,0.5,mutation));
+		ret->numhistory = (int)round(joinValue(numhistory,mate->numhistory,0.5,mutation));
+		// enforce bounds
+		if (ret->numlayers < MIN_LAYERS) ret->numlayers = MIN_LAYERS;
+		if (ret->numhistory < MIN_HISTORY) ret->numhistory = MIN_HISTORY;
+		if (ret->numlayers > MAX_LAYERS) ret->numlayers = MAX_LAYERS;
+		if (ret->numhistory > MAX_HISTORY) ret->numhistory = MAX_HISTORY;
+		if (ret->numlayers != numlayers || ret->numlayers != mate->numlayers)
+			cout << "mated numlayers: " << numlayers << " + " << mate->numlayers << " -> " << ret->numlayers << endl;
+		if (ret->numhistory != numhistory || ret->numhistory != mate->numhistory)
+			cout << "mated numhistory: " << numhistory << " + " << mate->numhistory << " -> " << ret->numhistory << endl;
+
+		ret->inputs = new float [NUM_INPUTS];
+		ret->outputs = new float [NUM_OUTPUTS];
+		ret->history = new float [NUM_INPUTS*(ret->numhistory+1)];
+		memset(ret->inputs,0x00,NUM_INPUTS*sizeof(float));
+		memset(ret->outputs,0x00,NUM_OUTPUTS*sizeof(float));
+		memset(ret->history,0x00,NUM_INPUTS*(ret->numhistory+1)*sizeof(float));
+
+		// the following will not necessarily work when you allow for brain-size evolution
+		// nodes for each layer
+		ret->numnodes = new int[ret->numlayers];
+		totalcoefs = 0;
+		for (ii=0; ii<ret->numlayers; ii++)
+		{
+			ret->numnodes[ii] = (int)numnodes[ii];
+			if (ret->numnodes[ii] < MIN_NODES) ret->numnodes[ii] = MIN_NODES;
+			if (ret->numnodes[ii] > MAX_NODES) ret->numnodes[ii] = MAX_NODES;
+			if (ret->numnodes[ii] != numnodes[ii])
+				cout << "change in numnodes: " << numnodes[ii] << " -> " << ret->numnodes[ii] << endl;
+		}
+
+		// coef memory is aligned [output][input]
+		// make room for coefs
+		ret->coefs_input = new float* [ret->numnodes[0]];
+		for (ii=0; ii<ret->numnodes[0]; ii++)
+			ret->coefs_input[ii] = new float [NUM_INPUTS*ret->numhistory+1];
+		totalcoefs += ret->numnodes[0] * (NUM_INPUTS*ret->numhistory+1);
+		ret->coefs_output = new float* [NUM_OUTPUTS];
+		for (ii=0; ii<NUM_OUTPUTS; ii++)
+			ret->coefs_output[ii] = new float [ret->numnodes[ret->numlayers-1]+1];
+		totalcoefs += NUM_OUTPUTS * (ret->numnodes[ret->numlayers-1]+1);
+		ret->coefs = new float** [ret->numlayers-1];
+		for (ii=0; ii<ret->numlayers-1; ii++)
+		{
+			ret->coefs[ii] = new float* [ret->numnodes[ii+1]];
+			for (ij=0; ij<ret->numnodes[ii+1]; ij++)
+				ret->coefs[ii][ij] = new float [ret->numnodes[ii]+1];
+			totalcoefs += numnodes[ii+1] * (ret->numnodes[ii]+1);
+		}
+
+		ret->node = new float* [ret->numlayers];
+		for (ii=0; ii<ret->numlayers; ii++)
+			ret->node[ii] = new float [ret->numnodes[ii]];
+
+		ret->iter = 0;
+		ret->alloc = true;
+
+		// decide crossover points
+		std::uniform_int_distribution<int> dist_uniform(0,totalcoefs-1);
+		numcrossover = 1;
+		if (numcrossover > totalcoefs) numcrossover = totalcoefs;
+		for (ii=0; ii<numcrossover; ii++)
+		{
+			ij = dist_uniform(eng);
+			while (find(co.begin(), co.end(), ij)!=co.end())
+				ij = dist_uniform(eng);
+			co.push_back(ij);
+		}
+
+		std::normal_distribution<float> dist_norm(0.0, mutation);
+
+		ind = 0;
+		takefromA = true;;
+		// input  coefs
+		for (ii=0; ii<ret->numnodes[0]; ii++)
+		{
+			for (ij=0; ij<NUM_INPUTS*ret->numhistory+1; ij++)
+			{
+				if (takefromA)
+					ret->coefs_input[ii][ij] = coefs_input[ii][ij] + dist_norm(eng);
+				else
+					ret->coefs_input[ii][ij] = mate->coefs_input[ii][ij] + dist_norm(eng);
+				ind ++;
+				if (find(co.begin(),co.end(),ind)!=co.end()) takefromA = !takefromA;
+			}
+		}
+		
+		for (ii=0; ii<NUM_OUTPUTS; ii++)
+		{
+			for (ij=0; ij<ret->numnodes[ret->numlayers-1]+1; ij++)
+			{
+				if (takefromA)
+					ret->coefs_output[ii][ij] = coefs_output[ii][ij] + dist_norm(eng);
+				else
+					ret->coefs_output[ii][ij] = mate->coefs_output[ii][ij] + dist_norm(eng);
+				ind ++;
+				if (find(co.begin(),co.end(),ind)!=co.end()) takefromA = !takefromA;
+			}
+		}
+		for (ii=0; ii<ret->numlayers-1; ii++)
+		{
+			for (ij=0; ij<ret->numnodes[ii+1]; ij++)
+			{
+				for (ik=0; ik<ret->numnodes[ii]+1; ik++)
+				{
+					if (takefromA)
+						ret->coefs[ii][ij][ik] = coefs[ii][ij][ik] + dist_norm(eng);
+					else
+						ret->coefs[ii][ij][ik] = mate->coefs[ii][ij][ik] + dist_norm(eng);
+					ind ++;
+					if (find(co.begin(),co.end(),ind)!=co.end()) takefromA = !takefromA;
+				}
+			}
+		}
+
+
+		return ret;
+	}
+
+
+
+
 
 	organism* clone (float mutation)
 	{
@@ -281,6 +515,7 @@ public:
 		organism *ret;
 
 		ret = new organism(false);
+		ret->generation = generation+1;
 
 		// set up random numbers
 		std::mt19937 eng((std::random_device())());
@@ -313,14 +548,16 @@ public:
 		common = min(ret->numlayers, numlayers);
 		for (ii=0; ii<common; ii++)
 		{
-			std::normal_distribution<float> dist_nodes(numnodes[ii], mutation*numnodes[ii]);
+			std::normal_distribution<float> dist_nodes(numnodes[ii], mutation*numnodes[ii]*0.1);
 			ret->numnodes[ii] = (int)round(dist_nodes(eng));
 			if (ret->numnodes[ii] < MIN_NODES) ret->numnodes[ii] = MIN_NODES;
 			if (ret->numnodes[ii] > MAX_NODES) ret->numnodes[ii] = MAX_NODES;
+			if (ret->numnodes[ii] != numnodes[ii])
+				cout << "change in numnodes: " << numnodes[ii] << " -> " << ret->numnodes[ii] << endl;
 		}
 		for (ii=common; ii<ret->numlayers; ii++)
 		{
-			std::normal_distribution<float> dist_nodes(numnodes[common-1], mutation*numnodes[common-1]);
+			std::normal_distribution<float> dist_nodes(numnodes[common-1], mutation*numnodes[common-1]*3);
 			ret->numnodes[ii] = (int)round(dist_nodes(eng));
 			if (ret->numnodes[ii] < MIN_NODES) ret->numnodes[ii] = MIN_NODES;
 			if (ret->numnodes[ii] > MAX_NODES) ret->numnodes[ii] = MAX_NODES;

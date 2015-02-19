@@ -49,6 +49,11 @@ void	postTickCallback(btDynamicsWorld *world, btScalar timeStep)
 	sim->computeStats(timeStep);
 }
 
+double satFunc (double val, double satval)
+{
+	return atan(val*2./satval)/PI_2;
+}
+
 void HexSim::computeStats (btScalar timeStep)
 {	
 	static long iter = 0;
@@ -59,19 +64,19 @@ void HexSim::computeStats (btScalar timeStep)
 	pos = rig->getBodyPosition();
 	vel = rig->getBodyVelocity();
 
+
 	// compute update to fitness
 //	fitness += sqrt(pow(vel.getX(),2.0)+pow(vel.getZ(),2.0));
-	fitness += 0.01 * pos.getX() * vel.getX();
-
+	fitness += 0.01 * satFunc(vel.getZ(),1.0) * satFunc(pos.getY(),0.05);
+//	cout << satFunc(vel.getZ(),0.2) << " " << satFunc(pos.getY(),0.05) << endl;
 
 	// only print stats every now and then
 	if (iter % STATS_SKIP == 0)
 	{
 		
 		// check convergence
-		if (vel.length() < 0.01)
-			converged = true;
-		if (pos.getY() < 0.35)
+		// if oranism can't move at all, gets eaten quickly
+		if (currtime > 5.0 && pos.getZ()/currtime < 0.02)
 			converged = true;
 	}
 
@@ -112,7 +117,7 @@ void HexSim::initPhysics()
 	currtime = 0.0;
 	converged = false;
 
-	setCameraDistance(btScalar(5.));
+	setCameraDistance(btScalar(3.));
 
 	m_collisionConfiguration = new btDefaultCollisionConfiguration();
 

@@ -6,22 +6,25 @@
 
 // physical body
 #define NUM_LEGS 6
-#define MAX_TORQUE 0.5
+#define MAX_TORQUE 1.5
 
 // brain
-#define MIN_HISTORY 2
+#define MIN_HISTORY 3
+#define MAX_HISTORY 3
+
 #define MIN_LAYERS 2
-#define MIN_NODES 7
-#define MAX_LAYERS 8
-#define MAX_NODES 150
-#define MAX_HISTORY 10
-#define HISTORY_SKIP 3
+#define MAX_LAYERS 2
+
+#define MIN_NODES 20
+#define MAX_NODES 20
+#define HISTORY_SKIP 15
 
 // analysis
-#define GEN_SIZE 30
+#define NUM_GENS 1
+#define GEN_SIZE 50
 #define STATS_SKIP 20
 
 // generation fractions
-#define GEN_RANDOM 0.2
-#define GEN_CLONES 0.8
-#define GEN_BABIES 0.0
+#define GEN_RANDOM 0.1
+#define GEN_CLONES 0.1
+#define GEN_BABIES 0.8
