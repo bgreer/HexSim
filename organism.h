@@ -222,6 +222,7 @@ public:
 			// bias
 			outputs[ii] += coefs_output[ii][numnodes[numlayers-1]];
 			outputs[ii] = sigmoid(outputs[ii]);
+			outputs[ii] = sin(iter*0.01);
 		}
 
 		// at the end, update personal history

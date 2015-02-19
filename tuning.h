@@ -7,6 +7,10 @@
 // physical body
 #define NUM_LEGS 6
 #define MAX_TORQUE 1.5
+#define SEG2_ANG_MIN -PI_4
+#define SEG2_ANG_MAX PI_4
+#define SEG3_ANG_MIN -PI_2
+#define SEG3_ANG_MAX PI_2
 
 // brain
 #define MIN_HISTORY 3
@@ -21,7 +25,7 @@
 
 // analysis
 #define NUM_GENS 1
-#define GEN_SIZE 50
+#define GEN_SIZE 2
 #define STATS_SKIP 20
 
 // generation fractions
