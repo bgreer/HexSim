@@ -68,8 +68,8 @@ void HexSim::computeStats (btScalar timeStep)
 
 	// compute update to fitness
 //	fitness += sqrt(pow(vel.getX(),2.0)+pow(vel.getZ(),2.0));
-	fitness += 0.01 * satFunc(vel.getZ(),10.0) * satFunc(pos.getY(),0.5) * (PI_2-angle);
-	cout << angle << endl;
+//	fitness += 0.01 * satFunc(vel.getZ(),10.0) * satFunc(pos.getY(),0.5);
+	fitness += 0.01 * pow(pos.getY(),4.0); // get air
 
 	// only print stats every now and then
 	if (iter % STATS_SKIP == 0)
@@ -110,6 +110,7 @@ void HexSim::stepSimulation(float a, int b)
 
 void HexSim::initPhysics()
 {
+	int ii;
 	setTexturing(true);
 	setShadows(true);
 
@@ -149,24 +150,26 @@ void HexSim::initPhysics()
 
 
 	// Spawn one ragdoll
-	spawnTestRig();
+	rig = new TestRig(m_dynamicsWorld);
+
+	// create and attach servos
+	for (ii=0; ii<3*NUM_LEGS; ii++)
+		servo_joint.push_back(new servo(static_cast<btHingeConstraint*>(rig->GetJoints()[ii])));
 
 	clientResetScene();		
 }
 
 
-void HexSim::spawnTestRig()
-{
-	rig = new TestRig(m_dynamicsWorld);
-}
-
 void HexSim::reset ()
 {
+	int ii;
 	delete rig;
 	converged = false;
 	currtime = 0.0;
 	fitness = 0.0;
 	rig = new TestRig(m_dynamicsWorld);
+	for (ii=0; ii<3*NUM_LEGS; ii++)
+		servo_joint[ii]->reset(static_cast<btHingeConstraint*>(rig->GetJoints()[ii]));
 }
 
 
@@ -184,19 +187,16 @@ void HexSim::setMotorTargets(btScalar deltaTime)
 		btScalar fCurAngle = hingeC->getHingeAngle();
 		org->inputs[ii] = ((float)fCurAngle);
 	}
+
+	// use ANN to compute targets
 	org->computeOutputs();
 	
 	// set leg motors
-	for (int i=0; i<3*NUM_LEGS; i++)
+	for (ii=0; ii<3*NUM_LEGS; ii++)
 	{
-		hinge = static_cast<btHingeConstraint*>(rig->GetJoints()[i]);
-		btScalar fCurAngle      = hinge->getHingeAngle();
-		// nn output
-		motorspeed = (org->outputs[i]-0.5)*8.0;
-
-		hinge->enableAngularMotor(true, motorspeed, MAX_TORQUE);
+		servo_joint[ii]->setTarget(org->outputs[ii]*2.0*PI);
+		servo_joint[ii]->setMotorSpeed();
 	}
-	
 }
 
 void HexSim::clientMoveAndDisplay()

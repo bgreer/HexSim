@@ -3,6 +3,7 @@
 
 #include "GlutDemoApplication.h"
 #include "LinearMath/btAlignedObjectArray.h"
+#include "servo.h"
 class btBroadphaseInterface;
 class btCollisionShape;
 class btOverlappingPairCache;
@@ -15,6 +16,7 @@ class HexSim : public GlutDemoApplication
 {
 	float currtime;
 	organism *org;
+	vector<servo*> servo_joint;
 
 	btAlignedObjectArray<class TestRig*> m_rigs;
 	TestRig *rig;
