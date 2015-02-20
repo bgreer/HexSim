@@ -10,8 +10,8 @@ using namespace std;
 #include <fstream>
 #include "tuning.h"
 
-#define NUM_INPUTS NUM_LEGS*2
-#define NUM_OUTPUTS NUM_LEGS*2
+#define NUM_INPUTS NUM_LEGS*3
+#define NUM_OUTPUTS NUM_LEGS*3
 
 // TODO:
 // save / load brain from file
@@ -222,7 +222,6 @@ public:
 			// bias
 			outputs[ii] += coefs_output[ii][numnodes[numlayers-1]];
 			outputs[ii] = sigmoid(outputs[ii]);
-			outputs[ii] = sin(iter*0.01);
 		}
 
 		// at the end, update personal history

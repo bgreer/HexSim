@@ -7,7 +7,7 @@
 #include "HexSim.h"
 #include "tuning.h"
 
-#define BODYPART_COUNT 2 * NUM_LEGS + 1
+#define BODYPART_COUNT 3 * NUM_LEGS + 1
 #define JOINT_COUNT BODYPART_COUNT - 1
 
 class TestRig
@@ -53,7 +53,10 @@ public:
 	}
 	float getBodyAngle ()
 	{
-		return 0.0;//m_bodies[0]->getOrientation();
+		btTransform t = m_bodies[0]->getCenterOfMassTransform();
+		btMatrix3x3 m = t.getBasis();
+		btVector3 v = m.getColumn(1);
+		return v.getX()+v.getY()+v.getZ();
 	}
 
 	// CONSTRUCTOR
@@ -63,31 +66,29 @@ public:
 		int ii;
 		float tht, stht, ctht, r;
 		btVector3 vUp(0, 1, 0);
-		btVector3 pos(0,0.15,0); // origin of robot
+		btVector3 pos(0,1.0,0); // origin of robot
 		btTransform offset;
 		btTransform transform;
 		btHingeConstraint* hingeC;
 		btTransform localA, localB, localC;
 		
 		// Setup geometry
-		float fBodySize  = 0.15f;
 
-		float bodyRadius = 0.15;
-		float legSegment1 = 0.03;
-		float legSegment2 = 0.12;
-		float legSegment3 = 0.12;
+		float bodyRadius = 1.5;
+		float legSegment1 = 0.5;
+		float legSegment2 = 1.2;
+		float legSegment3 = 1.2;
 
-		float fLegLength = 0.10f;
-		float fForeLegLength = 0.10f;
 		
 		// main body shape (radius, height, 0)
-		m_shapes[0] = new btCylinderShape(btVector3(bodyRadius,0.04,0.0));
+		m_shapes[0] = new btCylinderShape(btVector3(bodyRadius,0.4,0.0));
 		// add legs
 		for (ii=0; ii<NUM_LEGS; ii++)
 		{
 			// radius, length
-			m_shapes[2*ii+1] = new btCapsuleShape(btScalar(0.03), btScalar(legSegment2));
-			m_shapes[2*ii+2] = new btCapsuleShape(btScalar(0.02), btScalar(legSegment3));
+			m_shapes[3*ii+1] = new btCapsuleShape(0.3, legSegment1);
+			m_shapes[3*ii+2] = new btCapsuleShape(0.3, legSegment2);
+			m_shapes[3*ii+3] = new btCapsuleShape(0.2, legSegment3);
 		}
 
 		// Setup rigid bodies
@@ -115,18 +116,29 @@ public:
 			btVector3 vBoneOrigin = btVector3(ctht*r, fHeight, stht*r);
 			transform.setOrigin(vBoneOrigin);
 
-			// thigh
 			btVector3 vToBone = (vBoneOrigin - vRoot).normalize();
-			btVector3 vAxis = vToBone.cross(vUp);			
-			transform.setRotation(btQuaternion(vAxis, M_PI_2));
-			m_bodies[1+2*ii] = localCreateRigidBody(0.5, offset*transform, m_shapes[1+2*ii]);
+			btVector3 vAxis = vToBone.cross(vUp);
+			
+			// 1
+			transform.setIdentity();
+			r = bodyRadius + 0.5*legSegment1;
+			transform.setOrigin(btVector3(r*ctht, fHeight, r*stht));
+			transform.setRotation(btQuaternion(vAxis, PI_2));
+			m_bodies[1+3*ii] = localCreateRigidBody(0.2, offset*transform, m_shapes[1+3*ii]);
+
+			// thigh
+			transform.setIdentity();
+			r = bodyRadius + legSegment1 + 0.5*legSegment2;
+			transform.setOrigin(btVector3(r*ctht, fHeight, r*stht));
+			transform.setRotation(btQuaternion(vAxis, PI_2));
+			m_bodies[2+3*ii] = localCreateRigidBody(0.5, offset*transform, m_shapes[2+3*ii]);
 
 			// shin
 			transform.setIdentity();
-			r = bodyRadius + legSegment2 + 0.5*legSegment3;
+			r = bodyRadius + legSegment1 + legSegment2 + 0.5*legSegment3;
 			transform.setOrigin(btVector3(ctht*r, fHeight, stht*r));
 			transform.setRotation(btQuaternion(vAxis, PI_2));
-			m_bodies[2+2*ii] = localCreateRigidBody(0.5, offset*transform, m_shapes[2+2*ii]);
+			m_bodies[3+3*ii] = localCreateRigidBody(0.5, offset*transform, m_shapes[3+3*ii]);
 		}
 
 		// Setup some damping on the m_bodies
@@ -145,34 +157,53 @@ public:
 			stht = sin(tht);
 			ctht = cos(tht);
 
-			// hip joints
+			// 1
 			localA.setIdentity();
 			localB.setIdentity();
 			localA.getBasis().setEulerZYX(0,-tht,0);
-			localA.setOrigin(btVector3(ctht*bodyRadius, 0.0, stht*bodyRadius));
-			localB = m_bodies[1+2*ii]->getWorldTransform().inverse()
+			r = bodyRadius;
+			localA.setOrigin(btVector3(ctht*r, 0.0, stht*r));
+			localB = m_bodies[1+3*ii]->getWorldTransform().inverse()
 				* m_bodies[0]->getWorldTransform() * localA;
-			hingeC = new btHingeConstraint(*m_bodies[0], *m_bodies[1+2*ii], localA, localB);
+			hingeC = new btHingeConstraint(*m_bodies[0], *m_bodies[1+3*ii], localA, localB);
+			hingeC->setLimit(SEG1_ANG_MIN, SEG1_ANG_MAX);
+			btVector3 axis2 = btVector3(0.0,1.0,0.0);
+			hingeC->setAxis(axis2);
+			m_joints[3*ii] = hingeC;
+			m_ownerWorld->addConstraint(m_joints[3*ii], true);
+
+
+			// hip joints
+			localA.setIdentity();
+			localB.setIdentity();
+			localC.setIdentity();
+			localA.getBasis().setEulerZYX(0,-tht,0);
+			r = bodyRadius + legSegment1;
+			localA.setOrigin(btVector3(ctht*r, 0.0, stht*r));
+			localB = m_bodies[1+3*ii]->getWorldTransform().inverse()
+				* m_bodies[0]->getWorldTransform() * localA;
+			localC = m_bodies[2+3*ii]->getWorldTransform().inverse()
+				* m_bodies[0]->getWorldTransform() * localA;
+			hingeC = new btHingeConstraint(*m_bodies[1+3*ii], *m_bodies[2+3*ii], localB, localC);
 			hingeC->setLimit(SEG2_ANG_MIN, SEG2_ANG_MAX);
-			//hingeC->setLimit(btScalar(-0.1), btScalar(0.1));
-			m_joints[2*ii] = hingeC;
-			m_ownerWorld->addConstraint(m_joints[2*ii], true);
+			m_joints[1+3*ii] = hingeC;
+			m_ownerWorld->addConstraint(m_joints[1+3*ii], true);
 
 			// knee joints
 			localA.setIdentity();
 			localB.setIdentity();
 			localC.setIdentity();
 			localA.getBasis().setEulerZYX(0,-tht,0);
-			r = bodyRadius + legSegment2;
+			r = bodyRadius + legSegment1 + legSegment2;
 			localA.setOrigin(btVector3(ctht*r, 0.0, stht*r));
-			localB = m_bodies[1+2*ii]->getWorldTransform().inverse() * 
+			localB = m_bodies[2+3*ii]->getWorldTransform().inverse() * 
 				m_bodies[0]->getWorldTransform() * localA;
-			localC = m_bodies[2+2*ii]->getWorldTransform().inverse() * 
+			localC = m_bodies[3+3*ii]->getWorldTransform().inverse() * 
 				m_bodies[0]->getWorldTransform() * localA;
-			hingeC = new btHingeConstraint(*m_bodies[1+2*ii], *m_bodies[2+2*ii], localB, localC);
+			hingeC = new btHingeConstraint(*m_bodies[2+3*ii], *m_bodies[3+3*ii], localB, localC);
 			hingeC->setLimit(SEG3_ANG_MIN, SEG3_ANG_MAX);
-			m_joints[1+2*ii] = hingeC;
-			m_ownerWorld->addConstraint(m_joints[1+2*ii], true);
+			m_joints[2+3*ii] = hingeC;
+			m_ownerWorld->addConstraint(m_joints[2+3*ii], true);
 		}
 	}
 

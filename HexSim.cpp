@@ -59,16 +59,17 @@ void HexSim::computeStats (btScalar timeStep)
 	static long iter = 0;
 	static btVector3 lastpos, lastvel;
 	btVector3 pos, vel;
+	float angle;
 
 	currtime += timeStep;
 	pos = rig->getBodyPosition();
 	vel = rig->getBodyVelocity();
-
+	angle = rig->getBodyAngle();
 
 	// compute update to fitness
 //	fitness += sqrt(pow(vel.getX(),2.0)+pow(vel.getZ(),2.0));
-	fitness += 0.01 * satFunc(vel.getZ(),1.0) * satFunc(pos.getY(),0.05);
-//	cout << satFunc(vel.getZ(),0.2) << " " << satFunc(pos.getY(),0.05) << endl;
+	fitness += 0.01 * satFunc(vel.getZ(),10.0) * satFunc(pos.getY(),0.5) * (PI_2-angle);
+	cout << angle << endl;
 
 	// only print stats every now and then
 	if (iter % STATS_SKIP == 0)
@@ -76,7 +77,7 @@ void HexSim::computeStats (btScalar timeStep)
 		
 		// check convergence
 		// if oranism can't move at all, gets eaten quickly
-		if (currtime > 5.0 && pos.getZ()/currtime < 0.02)
+		if (currtime > 5.0 && pos.getZ()/currtime < 0.2)
 			converged = true;
 	}
 
@@ -88,6 +89,7 @@ void HexSim::computeStats (btScalar timeStep)
 
 double HexSim::getFitness ()
 {
+	// thisAlgorithmBecomingSkynetCost = 999999999;
 	return fitness;
 }
 
@@ -117,7 +119,7 @@ void HexSim::initPhysics()
 	currtime = 0.0;
 	converged = false;
 
-	setCameraDistance(btScalar(3.));
+	setCameraDistance(btScalar(15.));
 
 	m_collisionConfiguration = new btDefaultCollisionConfiguration();
 
@@ -130,7 +132,8 @@ void HexSim::initPhysics()
 	m_solver = new btSequentialImpulseConstraintSolver;
 
 	m_dynamicsWorld = new btDiscreteDynamicsWorld(m_dispatcher,m_broadphase,m_solver,m_collisionConfiguration);
-
+	m_dynamicsWorld->setGravity(btVector3(0,-98.1,0));
+	m_dynamicsWorld->getSolverInfo().m_numIterations = 50;
 	m_dynamicsWorld->setInternalTickCallback(motorPreTickCallback,this,true);
 	m_dynamicsWorld->setInternalTickCallback(postTickCallback,this,false);
 
@@ -143,6 +146,7 @@ void HexSim::initPhysics()
 		groundTransform.setOrigin(btVector3(0,-10,0));
 		localCreateRigidBody(btScalar(0.),groundTransform,groundShape);
 	}
+
 
 	// Spawn one ragdoll
 	spawnTestRig();
@@ -173,7 +177,7 @@ void HexSim::setMotorTargets(btScalar deltaTime)
 	btHingeConstraint *hinge;
 
 	// set nn inputs;
-	for (ii=0; ii<2*NUM_LEGS; ii++)
+	for (ii=0; ii<3*NUM_LEGS; ii++)
 	{
 		btHingeConstraint* hingeC = 
 			static_cast<btHingeConstraint*>(rig->GetJoints()[ii]);
@@ -183,12 +187,12 @@ void HexSim::setMotorTargets(btScalar deltaTime)
 	org->computeOutputs();
 	
 	// set leg motors
-	for (int i=0; i<2*NUM_LEGS; i++)
+	for (int i=0; i<3*NUM_LEGS; i++)
 	{
 		hinge = static_cast<btHingeConstraint*>(rig->GetJoints()[i]);
 		btScalar fCurAngle      = hinge->getHingeAngle();
 		// nn output
-		motorspeed = (org->outputs[i]-0.5)*4.0;
+		motorspeed = (org->outputs[i]-0.5)*8.0;
 
 		hinge->enableAngularMotor(true, motorspeed, MAX_TORQUE);
 	}

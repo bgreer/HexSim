@@ -13,10 +13,17 @@ int main(int argc,char* argv[])
   HexSim sim;
 	vector<organism*> gen, nextgen;
 	organism *bob;
+	vector<float> vals, probs;
 
   sim.initPhysics();
+
+	// initialize random number generators
 	std::mt19937 eng((std::random_device())());
 	std::exponential_distribution<float> dist_exp(3.0/GEN_SIZE);
+	vals.resize(GEN_SIZE+1);
+	for (ii=0; ii<GEN_SIZE+1; ii++)
+		vals[ii] = (float)ii;
+	probs.resize(GEN_SIZE);
 
 	// populate first generation
 	for (ii=0; ii<GEN_SIZE; ii++)
@@ -49,6 +56,12 @@ int main(int argc,char* argv[])
 
 		// create a new generation
 		for (ii=0; ii<GEN_SIZE; ii++)
+			probs[ii] = pow(max(gen[ii]->fitness, 0.01),SELECTION_STRENGTH);
+
+		
+		std::piecewise_constant_distribution<float> 
+			dist_fit(vals.begin(),vals.end(),probs.begin());
+		for (ii=0; ii<GEN_SIZE; ii++)
 		{
 			if (((float)ii)/GEN_SIZE < GEN_BABIES)
 			{
@@ -56,16 +69,16 @@ int main(int argc,char* argv[])
 				parentA = -1;
 				parentB = -1;
 				while (parentA < 0 || parentA >= GEN_SIZE)
-					parentA = (int)dist_exp(eng);
+					parentA = (int)dist_fit(eng);
 				while (parentB==parentA || parentB < 0 || parentB >= GEN_SIZE)
-					parentB = (int)dist_exp(eng);
+					parentB = (int)dist_fit(eng);
 				cout << "mating " << parentA << " with " << parentB << endl;
 				nextgen[ii] = gen[parentA]->makeBabyWith(gen[parentB], 0.001);
 			} else if (((float)ii)/GEN_SIZE < GEN_CLONES+GEN_BABIES) {
 				// pick a fit parent
 				parentA = -1;
 				while (parentA < 0 || parentA >= GEN_SIZE)
-					parentA = (int)dist_exp(eng);
+					parentA = (int)dist_fit(eng);
 				cout << "cloning " << parentA << endl;
 				nextgen[ii] = gen[parentA]->clone(0.05);
 			} else {

@@ -6,7 +6,9 @@
 
 // physical body
 #define NUM_LEGS 6
-#define MAX_TORQUE 1.5
+#define MAX_TORQUE 150.0
+#define SEG1_ANG_MIN -PI_4
+#define SEG1_ANG_MAX PI_4
 #define SEG2_ANG_MIN -PI_4
 #define SEG2_ANG_MAX PI_4
 #define SEG3_ANG_MIN -PI_2
@@ -25,8 +27,9 @@
 
 // analysis
 #define NUM_GENS 1
-#define GEN_SIZE 2
+#define GEN_SIZE 10
 #define STATS_SKIP 20
+#define SELECTION_STRENGTH 1.0
 
 // generation fractions
 #define GEN_RANDOM 0.1
