@@ -1,5 +1,6 @@
 using namespace std;
 #include <algorithm>
+#include <sstream>
 #include "organism.h"
 #include "HexSim.h"
 #include "GlutStuff.h"
@@ -9,7 +10,7 @@ bool compareOrganisms (organism *a, organism *b) {return (a->fitness>b->fitness)
 int main(int argc,char* argv[])
 {
 	int ii, ij, ik, parentA, parentB;
-	string fname;
+	stringstream fname;
   HexSim sim;
 	vector<organism*> gen, nextgen;
 	organism *bob;
@@ -53,6 +54,10 @@ int main(int argc,char* argv[])
 		cout << endl;
 		cout << "MAX " << ij << " " << gen[0]->fitness << " " << endl << endl;
 
+		// save best
+		fname.str(std::string());
+		fname << "brain_" << ij;
+		gen[0]->saveToFile(fname.str().c_str());
 
 		// create a new generation
 		for (ii=0; ii<GEN_SIZE; ii++)
@@ -96,8 +101,6 @@ int main(int argc,char* argv[])
 
 	bob = gen[0]->clone(0.0);
 	sim.attachOrganism(bob);
-	fname = "brain01";
-	bob->saveToFile(fname.c_str());
 	// clear out generation
 	for (ii=0; ii<GEN_SIZE; ii++)
 		delete gen[ii];
