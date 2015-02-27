@@ -55,11 +55,12 @@ double satFunc (double val, double satval)
 }
 
 void HexSim::computeStats (btScalar timeStep)
-{	
+{
+	int ii;
 	static long iter = 0;
 	static btVector3 lastpos, lastvel;
 	btVector3 pos, vel;
-	float angle;
+	float angle, motors;
 
 	currtime += timeStep;
 	pos = rig->getBodyPosition();
@@ -68,8 +69,12 @@ void HexSim::computeStats (btScalar timeStep)
 
 	// compute update to fitness
 //	fitness += sqrt(pow(vel.getX(),2.0)+pow(vel.getZ(),2.0));
-//	fitness += 0.01 * satFunc(vel.getZ(),10.0) * satFunc(pos.getY(),0.5);
-	fitness += 0.01 * pow(pos.getY(),4.0); // get air
+	motors = 0.0;
+	for (ii=0; ii<NUM_LEGS*3; ii++)
+		motors += fabs(servo_joint[ii]->getMotorSpeed())/SERVO_MAX_MOTORSPEED;
+	fitness += 0.01 * satFunc(vel.getZ(),10.0) * satFunc(pos.getY(),0.5)
+		* (1.0-satFunc(motors,NUM_LEGS*3.));
+//	fitness += 0.01 * pow(pos.getY(),4.0); // get air
 
 	// only print stats every now and then
 	if (iter % STATS_SKIP == 0)

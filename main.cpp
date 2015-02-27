@@ -91,6 +91,7 @@ int main(int argc,char* argv[])
 				nextgen[ii] = new organism(true);
 			}
 		}
+		cout << "moving gens.." << endl;
 		// copy next gen to curr gen
 		for (ii=0; ii<GEN_SIZE; ii++)
 		{
