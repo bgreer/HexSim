@@ -13,9 +13,6 @@ using namespace std;
 #define NUM_INPUTS NUM_LEGS*3
 #define NUM_OUTPUTS NUM_LEGS*3
 
-// TODO:
-// save / load brain from file
-// combine two organisms to form new organism (baby making)
 
 class organism
 {
@@ -110,8 +107,65 @@ public:
 
 	void readFromFile (char *fname)
 	{
-		// take a file, read size of brain
-		// allocate space, read in coefs
+		int ii, ij;
+		size_t sf, si;
+		char *sizebuffer, databuffer;
+		ifstream file;
+		
+		sf = sizeof(float);
+		si = sizeof(int);
+		sizebuffer = new char [1024];
+		file.open(fname, ios::in | ios::binary);
+		// numlayers
+		file.read(sizebuffer, si);
+		memcpy(&numlayers, sizebuffer, si);
+		numnodes = new int [numlayers];
+		inputs = new float [NUM_INPUTS];
+		outputs = new float [NUM_OUTPUTS];
+		// numhistory
+		file.read(sizebuffer, si);
+		memcpy(&numhistory, sizebuffer, si);
+		history = new float [NUM_INPUTS*(numhistory+1)];
+		// numnodes[]
+		file.read(sizebuffer, si*numlayers);
+		memcpy(numnodes, sizebuffer, si*numlayers);
+		for (ii=0; ii<numlayers; ii++)
+		{
+			numnodes[ii] = 20;
+			cout << "!!!layer " << ii << " nodes " << numnodes[ii] << endl;
+		}
+		coefs_input = new float* [numnodes[0]];
+		for (ii=0; ii<numnodes[0]; ii++)
+			coefs_input[ii] = new float [NUM_INPUTS*numhistory+1];
+		coefs_output = new float* [NUM_OUTPUTS];
+		for (ii=0; ii<NUM_OUTPUTS; ii++)
+			coefs_output[ii] = new float [numnodes[numlayers-1]+1];
+		coefs = new float** [numlayers-1];
+		for (ii=0; ii<numlayers-1; ii++)
+		{
+			coefs[ii] = new float* [numnodes[ii+1]];
+			for (ij=0; ij<numnodes[ii+1]; ij++)
+				coefs[ii][ij] = new float [numnodes[ii]+1];
+		}
+		node = new float* [numlayers];
+		for (ii=0; ii<numlayers; ii++)
+			node[ii] = new float [numnodes[ii]];
+
+		// read coefs
+		for (ii=0; ii<numnodes[0]; ii++)
+			file.read(reinterpret_cast<char*>(coefs_input[ii]),sf*(NUM_INPUTS*numhistory+1));
+		for (ii=0; ii<NUM_OUTPUTS; ii++)
+			file.read(reinterpret_cast<char*>(coefs_output[ii]),sf*(numnodes[numlayers-1]+1));
+		for (ii=0; ii<numlayers-1; ii++)
+			for (ij=0; ij<numnodes[ii+1]; ij++)
+				file.read(reinterpret_cast<char*>(coefs[ii][ij]),sf*(numnodes[ii]+1));
+
+
+		// all done
+		file.close();
+
+		alloc = true;
+		delete [] sizebuffer;
 	}
 
 	char *packData (size_t *s)
@@ -137,7 +191,7 @@ public:
 		offset += si;
 		memcpy(buffer+offset,&numhistory,si);
 		offset += si;
-		memcpy(buffer+offset,&numnodes,si*numlayers);
+		memcpy(buffer+offset,numnodes,si*numlayers);
 		offset += si*numlayers;
 		// copy input coefs
 		for (ii=0; ii<numnodes[0]; ii++)
