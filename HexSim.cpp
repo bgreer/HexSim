@@ -7,6 +7,7 @@
 #include "HexSim.h"
 #include "TestRig.h"
 #include "tuning.h"
+#include <unistd.h>
 
 void vertex(btVector3 &v)
 {
@@ -60,12 +61,12 @@ void HexSim::computeStats (btScalar timeStep)
 	static long iter = 0;
 	static btVector3 lastpos, lastvel;
 	btVector3 pos, vel;
-	float angle, motors;
+	float angle, motors, legheight;
 
 	currtime += timeStep;
 	pos = rig->getBodyPosition();
 	vel = rig->getBodyVelocity();
-	angle = rig->getBodyAngle();
+	angle = rig->getBodyAngle(); // radians away from vertical
 
 	// compute update to fitness
 //	fitness += sqrt(pow(vel.getX(),2.0)+pow(vel.getZ(),2.0));
@@ -73,7 +74,7 @@ void HexSim::computeStats (btScalar timeStep)
 	for (ii=0; ii<NUM_LEGS*3; ii++)
 		motors += fabs(servo_joint[ii]->getMotorSpeed())/SERVO_MAX_MOTORSPEED;
 	fitness += 0.01 * satFunc(vel.getZ(),10.0) * satFunc(pos.getY(),0.5)
-		* (1.0-satFunc(motors,NUM_LEGS*3.));
+		* (1.0-satFunc(motors,NUM_LEGS*3.)) * satFunc(PI_2-angle,PI_2);
 //	fitness += 0.01 * pow(pos.getY(),4.0); // get air
 
 	// only print stats every now and then
@@ -85,7 +86,7 @@ void HexSim::computeStats (btScalar timeStep)
 		if (currtime > 5.0 && pos.getZ()/currtime < 0.2)
 			converged = true;
 	}
-
+//	usleep(1000000);
 	// store values for next stats check
 	lastpos = pos;
 	lastvel = vel;

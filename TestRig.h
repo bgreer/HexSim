@@ -53,10 +53,12 @@ public:
 	}
 	float getBodyAngle ()
 	{
-		btTransform t = m_bodies[0]->getCenterOfMassTransform();
-		btMatrix3x3 m = t.getBasis();
-		btVector3 v = m.getColumn(1);
-		return v.getX()+v.getY()+v.getZ();
+		btQuaternion q = m_bodies[0]->getOrientation();
+		btVector3 v = q.getAxis();
+		v.setY(0.0);
+		float ang = q.getAngle();
+		v = v * ang;
+		return v.length();
 	}
 
 	// CONSTRUCTOR

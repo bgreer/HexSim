@@ -35,8 +35,8 @@
 #define HISTORY_SKIP 15
 
 // analysis
-#define NUM_GENS 100
-#define GEN_SIZE 100
+#define NUM_GENS 10
+#define GEN_SIZE 10
 #define STATS_SKIP 20
 #define SELECTION_STRENGTH 1.0
 
