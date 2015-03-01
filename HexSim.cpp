@@ -73,7 +73,7 @@ void HexSim::computeStats (btScalar timeStep)
 	motors = 0.0;
 	for (ii=0; ii<NUM_LEGS*3; ii++)
 		motors += fabs(servo_joint[ii]->getMotorSpeed())/SERVO_MAX_MOTORSPEED;
-	fitness += 0.01 * satFunc(vel.getZ(),10.0) * satFunc(pos.getY(),0.5)
+	fitness += 0.01 * satFunc(vel.getX(),10.0) * satFunc(pos.getY(),0.5)
 		* (1.0-satFunc(motors,NUM_LEGS*3.)) * satFunc(PI_2-angle,PI_2);
 //	fitness += 0.01 * pow(pos.getY(),4.0); // get air
 
@@ -181,8 +181,8 @@ void HexSim::reset ()
 
 void HexSim::setMotorTargets(btScalar deltaTime)
 {
-	int ii;
-	float motorspeed;
+	int ii, ij, ind;
+	float val, amp, phi;
 	btHingeConstraint *hinge;
 
 	// set nn inputs;
@@ -200,7 +200,16 @@ void HexSim::setMotorTargets(btScalar deltaTime)
 	// set leg motors
 	for (ii=0; ii<3*NUM_LEGS; ii++)
 	{
-		servo_joint[ii]->setTarget(org->outputs[ii]*2.0*PI);
+		ind = ii*FOURIER_PARAMS;
+		val = org->outputs[ind] * 2.0*PI;
+		for (ij=0; ij<NUM_MODES; ij++)
+		{
+			amp = org->outputs[ind+ij*2+1] * 2.0*PI;
+			phi = org->outputs[ind+ij*2+2] * 2.0*PI;
+			val += amp*sin(currtime*2.*PI*(ij+1)/2.0 + phi);
+		}
+		servo_joint[ii]->setTarget(val);
+//		servo_joint[ii]->setTarget(org->outputs[ii]*2.0*PI);
 		servo_joint[ii]->setMotorSpeed();
 	}
 }

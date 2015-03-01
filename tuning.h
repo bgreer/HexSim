@@ -24,18 +24,20 @@
 #define SERVO_MARGIN degToRad(2.0)
 
 // brain
-#define MIN_HISTORY 3
-#define MAX_HISTORY 3
+#define NUM_HISTORY 3
 
-#define MIN_LAYERS 2
-#define MAX_LAYERS 2
+#define MIN_LAYERS 1
+#define MAX_LAYERS 1
 
-#define MIN_NODES 20
-#define MAX_NODES 20
-#define HISTORY_SKIP 15
+#define MIN_NODES 1
+#define MAX_NODES 1
+#define HISTORY_SKIP 5
+
+#define NUM_MODES 1
+#define FOURIER_PARAMS (NUM_MODES*2+1)
 
 // analysis
-#define NUM_GENS 10
+#define NUM_GENS 1
 #define GEN_SIZE 10
 #define STATS_SKIP 20
 #define SELECTION_STRENGTH 1.0

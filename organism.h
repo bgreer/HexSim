@@ -11,7 +11,7 @@ using namespace std;
 #include "tuning.h"
 
 #define NUM_INPUTS NUM_LEGS*3
-#define NUM_OUTPUTS NUM_LEGS*3
+#define NUM_OUTPUTS NUM_LEGS*3*FOURIER_PARAMS
 
 
 class organism
@@ -27,7 +27,6 @@ public:
 	// neural network size
 	int numlayers;
 	int *numnodes; // for each layer
-	int numhistory; // extra input nodes
 	float **coefs_input;
 	float **coefs_output;
 	float ***coefs;
@@ -124,19 +123,13 @@ public:
 		outputs = new float [NUM_OUTPUTS];
 		// numhistory
 		file.read(sizebuffer, si);
-		memcpy(&numhistory, sizebuffer, si);
-		history = new float [NUM_INPUTS*(numhistory+1)];
+		history = new float [NUM_INPUTS*(NUM_HISTORY+1)];
 		// numnodes[]
 		file.read(sizebuffer, si*numlayers);
 		memcpy(numnodes, sizebuffer, si*numlayers);
-		for (ii=0; ii<numlayers; ii++)
-		{
-			numnodes[ii] = 20;
-			cout << "!!!layer " << ii << " nodes " << numnodes[ii] << endl;
-		}
 		coefs_input = new float* [numnodes[0]];
 		for (ii=0; ii<numnodes[0]; ii++)
-			coefs_input[ii] = new float [NUM_INPUTS*numhistory+1];
+			coefs_input[ii] = new float [NUM_INPUTS*NUM_HISTORY+1];
 		coefs_output = new float* [NUM_OUTPUTS];
 		for (ii=0; ii<NUM_OUTPUTS; ii++)
 			coefs_output[ii] = new float [numnodes[numlayers-1]+1];
@@ -153,7 +146,7 @@ public:
 
 		// read coefs
 		for (ii=0; ii<numnodes[0]; ii++)
-			file.read(reinterpret_cast<char*>(coefs_input[ii]),sf*(NUM_INPUTS*numhistory+1));
+			file.read(reinterpret_cast<char*>(coefs_input[ii]),sf*(NUM_INPUTS*NUM_HISTORY+1));
 		for (ii=0; ii<NUM_OUTPUTS; ii++)
 			file.read(reinterpret_cast<char*>(coefs_output[ii]),sf*(numnodes[numlayers-1]+1));
 		for (ii=0; ii<numlayers-1; ii++)
@@ -178,7 +171,7 @@ public:
 		si = sizeof(int);
 		sf = sizeof(float);
 		size = si*2 + si*numlayers
-			+ sf*(NUM_INPUTS*numhistory+1)*numnodes[0]
+			+ sf*(NUM_INPUTS*NUM_HISTORY+1)*numnodes[0]
 			+ sf*((numnodes[numlayers-1]+1)*NUM_OUTPUTS);
 		for (ii=0; ii<numlayers-1; ii++)
 			size += sf*(numnodes[ii+1])*(numnodes[ii]+1);
@@ -189,15 +182,13 @@ public:
 		offset = 0;
 		memcpy(buffer+offset,&numlayers,si);
 		offset += si;
-		memcpy(buffer+offset,&numhistory,si);
-		offset += si;
 		memcpy(buffer+offset,numnodes,si*numlayers);
 		offset += si*numlayers;
 		// copy input coefs
 		for (ii=0; ii<numnodes[0]; ii++)
 		{
-			memcpy(buffer+offset,coefs_input[ii],sf*(NUM_INPUTS*numhistory+1));
-			offset += sf*(NUM_INPUTS*numhistory+1);
+			memcpy(buffer+offset,coefs_input[ii],sf*(NUM_INPUTS*NUM_HISTORY+1));
+			offset += sf*(NUM_INPUTS*NUM_HISTORY+1);
 		}
 		// copy output coefs
 		for (ii=0; ii<NUM_OUTPUTS; ii++)
@@ -247,10 +238,10 @@ public:
 			for (ij=0; ij<NUM_INPUTS; ij++)
 				node[0][ii] += coefs_input[ii][ij] * inputs[ij];
 			// history
-			for (ij=0; ij<NUM_INPUTS*(numhistory-1); ij++)
+			for (ij=0; ij<NUM_INPUTS*(NUM_HISTORY-1); ij++)
 				node[0][ii] += coefs_input[ii][ij+NUM_INPUTS] * history[ij];
 			// bias
-			node[0][ii] += coefs_input[ii][NUM_INPUTS*numhistory];
+			node[0][ii] += coefs_input[ii][NUM_INPUTS*NUM_HISTORY];
 			node[0][ii] = sigmoid(node[0][ii]);
 		}
 		for (ii=1; ii<numlayers; ii++)
@@ -282,7 +273,7 @@ public:
 		if (iter % HISTORY_SKIP == 0)
 		{
 			// first move existing history down the array
-			for (ii=0; ii<numhistory-2; ii++)
+			for (ii=0; ii<NUM_HISTORY-2; ii++)
 				for (ij=0; ij<NUM_INPUTS; ij++)
 					history[(ii+1)*NUM_INPUTS+ij] = history[ii*NUM_INPUTS+ij];
 			// then, store most recent history
@@ -307,22 +298,20 @@ public:
 
 		// layers, hostory
 		numlayers = (int)dist_exp(eng) + MIN_LAYERS;
-		numhistory = (int)(dist_exp(eng)) + MIN_HISTORY;
 
 		// enforce upper bounds
 		if (numlayers > MAX_LAYERS) numlayers = MAX_LAYERS;
-		if (numhistory > MAX_HISTORY) numhistory = MAX_HISTORY;
 	
 		// in/out
 		inputs = new float [NUM_INPUTS];
 		outputs = new float [NUM_OUTPUTS];
-		history = new float [NUM_INPUTS*(numhistory+1)];
+		history = new float [NUM_INPUTS*(NUM_HISTORY+1)];
 		memset(inputs,0x00,NUM_INPUTS*sizeof(float));
 		memset(outputs,0x00,NUM_OUTPUTS*sizeof(float));
-		memset(history,0x00,NUM_INPUTS*(numhistory+1)*sizeof(float));
+		memset(history,0x00,NUM_INPUTS*(NUM_HISTORY+1)*sizeof(float));
 	
 		// nodes for each layer
-		std::poisson_distribution<> dist_poi(NUM_INPUTS*(numhistory+1));
+		std::poisson_distribution<> dist_poi(NUM_INPUTS*(NUM_HISTORY+1));
 		numnodes = new int[numlayers];
 		for (ii=0; ii<numlayers; ii++)
 		{
@@ -335,7 +324,7 @@ public:
 		// make room for coefs
 		coefs_input = new float* [numnodes[0]];
 		for (ii=0; ii<numnodes[0]; ii++)
-			coefs_input[ii] = new float [NUM_INPUTS*numhistory+1];
+			coefs_input[ii] = new float [NUM_INPUTS*NUM_HISTORY+1];
 		coefs_output = new float* [NUM_OUTPUTS];
 		for (ii=0; ii<NUM_OUTPUTS; ii++)
 			coefs_output[ii] = new float [numnodes[numlayers-1]+1];
@@ -363,7 +352,7 @@ public:
 		// initialize coefs randomly
 		std::normal_distribution<float> dist_norm(0.0, 50.0);
 		for (ii=0; ii<numnodes[0]; ii++)
-			for (ij=0; ij<NUM_INPUTS*numhistory+1; ij++)
+			for (ij=0; ij<NUM_INPUTS*NUM_HISTORY+1; ij++)
 				coefs_input[ii][ij] = dist_norm(eng);
 		for (ii=0; ii<NUM_OUTPUTS; ii++)
 			for (ij=0; ij<numnodes[numlayers-1]+1; ij++)
@@ -439,23 +428,18 @@ public:
 		std::mt19937 eng((std::random_device())());
 
 		ret->numlayers = (int)round(joinValue(numlayers,mate->numlayers,0.5,mutation));
-		ret->numhistory = (int)round(joinValue(numhistory,mate->numhistory,0.5,mutation));
 		// enforce bounds
 		if (ret->numlayers < MIN_LAYERS) ret->numlayers = MIN_LAYERS;
-		if (ret->numhistory < MIN_HISTORY) ret->numhistory = MIN_HISTORY;
 		if (ret->numlayers > MAX_LAYERS) ret->numlayers = MAX_LAYERS;
-		if (ret->numhistory > MAX_HISTORY) ret->numhistory = MAX_HISTORY;
 		if (ret->numlayers != numlayers || ret->numlayers != mate->numlayers)
 			cout << "mated numlayers: " << numlayers << " + " << mate->numlayers << " -> " << ret->numlayers << endl;
-		if (ret->numhistory != numhistory || ret->numhistory != mate->numhistory)
-			cout << "mated numhistory: " << numhistory << " + " << mate->numhistory << " -> " << ret->numhistory << endl;
 
 		ret->inputs = new float [NUM_INPUTS];
 		ret->outputs = new float [NUM_OUTPUTS];
-		ret->history = new float [NUM_INPUTS*(ret->numhistory+1)];
+		ret->history = new float [NUM_INPUTS*(NUM_HISTORY+1)];
 		memset(ret->inputs,0x00,NUM_INPUTS*sizeof(float));
 		memset(ret->outputs,0x00,NUM_OUTPUTS*sizeof(float));
-		memset(ret->history,0x00,NUM_INPUTS*(ret->numhistory+1)*sizeof(float));
+		memset(ret->history,0x00,NUM_INPUTS*(NUM_HISTORY+1)*sizeof(float));
 
 		// the following will not necessarily work when you allow for brain-size evolution
 		// nodes for each layer
@@ -474,8 +458,8 @@ public:
 		// make room for coefs
 		ret->coefs_input = new float* [ret->numnodes[0]];
 		for (ii=0; ii<ret->numnodes[0]; ii++)
-			ret->coefs_input[ii] = new float [NUM_INPUTS*ret->numhistory+1];
-		totalcoefs += ret->numnodes[0] * (NUM_INPUTS*ret->numhistory+1);
+			ret->coefs_input[ii] = new float [NUM_INPUTS*NUM_HISTORY+1];
+		totalcoefs += ret->numnodes[0] * (NUM_INPUTS*NUM_HISTORY+1);
 		ret->coefs_output = new float* [NUM_OUTPUTS];
 		for (ii=0; ii<NUM_OUTPUTS; ii++)
 			ret->coefs_output[ii] = new float [ret->numnodes[ret->numlayers-1]+1];
@@ -515,7 +499,7 @@ public:
 		// input  coefs
 		for (ii=0; ii<ret->numnodes[0]; ii++)
 		{
-			for (ij=0; ij<NUM_INPUTS*ret->numhistory+1; ij++)
+			for (ij=0; ij<NUM_INPUTS*NUM_HISTORY+1; ij++)
 			{
 				if (takefromA)
 					ret->coefs_input[ii][ij] = coefs_input[ii][ij] + dist_norm(eng);
@@ -574,28 +558,22 @@ public:
 		// set up random numbers
 		std::mt19937 eng((std::random_device())());
 		std::normal_distribution<float> dist_layers(numlayers, mutation*numlayers);
-		std::normal_distribution<float> dist_history(numhistory, mutation*numhistory);
 
 		ret->numlayers = (int)round(dist_layers(eng));
-		ret->numhistory = (int)round(dist_history(eng));
 		// enforce bounds
 		if (ret->numlayers < MIN_LAYERS) ret->numlayers = MIN_LAYERS;
-		if (ret->numhistory < MIN_HISTORY) ret->numhistory = MIN_HISTORY;
 		if (ret->numlayers > MAX_LAYERS) ret->numlayers = MAX_LAYERS;
-		if (ret->numhistory > MAX_HISTORY) ret->numhistory = MAX_HISTORY;
 
 		if (numlayers != ret->numlayers)
 			cout << "change in layers: " << numlayers << " -> " << ret->numlayers << endl;
-		if (numhistory != ret->numhistory)
-			cout << "change in history: " << numhistory << " -> " << ret->numhistory << endl;
 	
 		// in/out
 		ret->inputs = new float [NUM_INPUTS];
 		ret->outputs = new float [NUM_OUTPUTS];
-		ret->history = new float [NUM_INPUTS*(ret->numhistory+1)];
+		ret->history = new float [NUM_INPUTS*(NUM_HISTORY+1)];
 		memset(ret->inputs,0x00,NUM_INPUTS*sizeof(float));
 		memset(ret->outputs,0x00,NUM_OUTPUTS*sizeof(float));
-		memset(ret->history,0x00,NUM_INPUTS*(ret->numhistory+1)*sizeof(float));
+		memset(ret->history,0x00,NUM_INPUTS*(NUM_HISTORY+1)*sizeof(float));
 
 		// nodes for each layer
 		ret->numnodes = new int[ret->numlayers];
@@ -621,7 +599,7 @@ public:
 		// make room for coefs
 		ret->coefs_input = new float* [ret->numnodes[0]];
 		for (ii=0; ii<ret->numnodes[0]; ii++)
-			ret->coefs_input[ii] = new float [NUM_INPUTS*ret->numhistory+1];
+			ret->coefs_input[ii] = new float [NUM_INPUTS*NUM_HISTORY+1];
 		ret->coefs_output = new float* [NUM_OUTPUTS];
 		for (ii=0; ii<NUM_OUTPUTS; ii++)
 			ret->coefs_output[ii] = new float [ret->numnodes[ret->numlayers-1]+1];
@@ -645,15 +623,10 @@ public:
 
 		common = min(ret->numnodes[0], numnodes[0]);
 		for (ii=0; ii<common; ii++)
-		{
-			common2 = NUM_INPUTS*min(ret->numhistory, numhistory)+1;
-			for (ij=0; ij<common2; ij++)
+			for (ij=0; ij<NUM_INPUTS*NUM_HISTORY+1; ij++)
 				ret->coefs_input[ii][ij] = coefs_input[ii][ij] * dist_mutate(eng);
-			for (ij=common2; ij<NUM_INPUTS*ret->numhistory+1; ij++)
-				ret->coefs_input[ii][ij] = dist_norm(eng);
-		}
 		for (ii=common; ii<ret->numnodes[0]; ii++)
-			for (ij=0; ij<NUM_INPUTS*ret->numhistory+1; ij++)
+			for (ij=0; ij<NUM_INPUTS*NUM_HISTORY+1; ij++)
 				ret->coefs_input[ii][ij] = dist_norm(eng);
 		for (ii=0; ii<NUM_OUTPUTS; ii++)
 		{
