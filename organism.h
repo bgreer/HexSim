@@ -122,7 +122,6 @@ public:
 		inputs = new float [NUM_INPUTS];
 		outputs = new float [NUM_OUTPUTS];
 		// numhistory
-		file.read(sizebuffer, si);
 		history = new float [NUM_INPUTS*(NUM_HISTORY+1)];
 		// numnodes[]
 		file.read(sizebuffer, si*numlayers);
@@ -170,7 +169,7 @@ public:
 		// make room for info
 		si = sizeof(int);
 		sf = sizeof(float);
-		size = si*2 + si*numlayers
+		size = si + si*numlayers
 			+ sf*(NUM_INPUTS*NUM_HISTORY+1)*numnodes[0]
 			+ sf*((numnodes[numlayers-1]+1)*NUM_OUTPUTS);
 		for (ii=0; ii<numlayers-1; ii++)

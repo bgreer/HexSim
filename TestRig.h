@@ -78,7 +78,7 @@ public:
 
 		float bodyRadius = 1.5;
 		float legSegment1 = 0.5;
-		float legSegment2 = 1.2;
+		float legSegment2 = 0.7;
 		float legSegment3 = 1.2;
 
 		

@@ -73,8 +73,13 @@ void HexSim::computeStats (btScalar timeStep)
 	motors = 0.0;
 	for (ii=0; ii<NUM_LEGS*3; ii++)
 		motors += fabs(servo_joint[ii]->getMotorSpeed())/SERVO_MAX_MOTORSPEED;
-	fitness += 0.01 * satFunc(vel.getX(),10.0) * satFunc(pos.getY(),0.5)
-		* (1.0-satFunc(motors,NUM_LEGS*3.)) * satFunc(PI_2-angle,PI_2);
+	/*
+	fitness += satFunc(vel.getX(),10.0)
+			* satFunc(pos.getY(),0.5)
+			* (1.0-satFunc(motors,NUM_LEGS*3.))
+			* satFunc(PI_2-angle,PI_2);
+	*/
+	fitness += pow(pos.getY(),2.0);
 //	fitness += 0.01 * pow(pos.getY(),4.0); // get air
 
 	// only print stats every now and then
@@ -83,8 +88,9 @@ void HexSim::computeStats (btScalar timeStep)
 		
 		// check convergence
 		// if oranism can't move at all, gets eaten quickly
-		if (currtime > 5.0 && pos.getZ()/currtime < 0.2)
-			converged = true;
+//		if (currtime > 5.0 && pos.getZ()/currtime < 0.2)
+//			converged = true;
+		if (currtime > 5.0 && pos.getY() < 0.3) converged = true;
 	}
 //	usleep(1000000);
 	// store values for next stats check
@@ -204,7 +210,7 @@ void HexSim::setMotorTargets(btScalar deltaTime)
 		val = org->outputs[ind] * 2.0*PI;
 		for (ij=0; ij<NUM_MODES; ij++)
 		{
-			amp = org->outputs[ind+ij*2+1] * 2.0*PI;
+			amp = org->outputs[ind+ij*2+1] * PI;
 			phi = org->outputs[ind+ij*2+2] * 2.0*PI;
 			val += amp*sin(currtime*2.*PI*(ij+1)/2.0 + phi);
 		}

@@ -78,7 +78,7 @@ int main(int argc,char* argv[])
 				while (parentB==parentA || parentB < 0 || parentB >= GEN_SIZE)
 					parentB = (int)dist_fit(eng);
 				cout << "mating " << parentA << " with " << parentB << endl;
-				nextgen[ii] = gen[parentA]->makeBabyWith(gen[parentB], 0.001);
+				nextgen[ii] = gen[parentA]->makeBabyWith(gen[parentB], 0.01);
 			} else if (((float)ii)/GEN_SIZE < GEN_CLONES+GEN_BABIES) {
 				// pick a fit parent
 				parentA = -1;
