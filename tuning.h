@@ -23,22 +23,21 @@
 #define SERVO_MAX_MOTORSPEED degToRad(354.0)
 #define SERVO_MARGIN degToRad(2.0)
 
-// brain
+// NN brain
 #define NUM_HISTORY 0
-
 #define MIN_LAYERS 1
 #define MAX_LAYERS 1
-
 #define MIN_NODES 1
 #define MAX_NODES 1
 #define HISTORY_SKIP 5
 
-#define NUM_MODES 0
+// Fourier series controller
+#define NUM_MODES 1
 #define FOURIER_PARAMS (NUM_MODES*2+1)
 
 // analysis
-#define NUM_GENS 20
-#define GEN_SIZE 20
+#define NUM_GENS 1
+#define GEN_SIZE 4
 #define STATS_SKIP 20
 #define SELECTION_STRENGTH 1.0
 
@@ -46,3 +45,8 @@
 #define GEN_RANDOM 0.1
 #define GEN_CLONES 0.1
 #define GEN_BABIES 0.8
+
+// mutation amounts
+#define MUTATE_BABY 0.01
+#define MUTATE_CLONE 0.01
+#define MUTATE_NEW 1.0

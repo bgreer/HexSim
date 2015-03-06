@@ -192,6 +192,7 @@ void HexSim::setMotorTargets(btScalar deltaTime)
 	btHingeConstraint *hinge;
 
 	// set nn inputs;
+	/*
 	for (ii=0; ii<3*NUM_LEGS; ii++)
 	{
 		btHingeConstraint* hingeC = 
@@ -199,23 +200,16 @@ void HexSim::setMotorTargets(btScalar deltaTime)
 		btScalar fCurAngle = hingeC->getHingeAngle();
 		org->inputs[ii] = ((float)fCurAngle);
 	}
+	*/
 
 	// use ANN to compute targets
-	org->computeOutputs();
+	org->computeOutputs(currtime*2.*PI);
 	
 	// set leg motors
 	for (ii=0; ii<3*NUM_LEGS; ii++)
 	{
-		ind = ii*FOURIER_PARAMS;
-		val = org->outputs[ind] * 2.0*PI;
-		for (ij=0; ij<NUM_MODES; ij++)
-		{
-			amp = org->outputs[ind+ij*2+1] * PI;
-			phi = org->outputs[ind+ij*2+2] * 2.0*PI;
-			val += amp*sin(currtime*2.*PI*(ij+1)/2.0 + phi);
-		}
-		servo_joint[ii]->setTarget(val);
-//		servo_joint[ii]->setTarget(org->outputs[ii]*2.0*PI);
+		servo_joint[ii]->setTarget(org->outputs[ii]+PI_2);
+		cout << ii << "  " << org->outputs[ii] << endl;
 		servo_joint[ii]->setMotorSpeed();
 	}
 }

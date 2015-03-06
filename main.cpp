@@ -1,5 +1,6 @@
 using namespace std;
 #include <algorithm>
+#include <iostream>
 #include <sstream>
 #include "organism.h"
 #include "HexSim.h"
@@ -15,6 +16,7 @@ int main(int argc,char* argv[])
 	vector<organism*> gen, nextgen;
 	organism *bob;
 	vector<float> vals, probs;
+	ofstream file;
 
   sim.initPhysics();
 
@@ -29,7 +31,7 @@ int main(int argc,char* argv[])
 	// populate first generation
 	for (ii=0; ii<GEN_SIZE; ii++)
 	{
-		gen.push_back(new organism(true));
+		gen.push_back(new organism(MUTATE_NEW));
 	}
 	nextgen.resize(GEN_SIZE);
 
@@ -45,7 +47,7 @@ int main(int argc,char* argv[])
 				sim.stepSimulation(0.01, 1);
 
 			gen[ii]->fitness = sim.getFitness();
-			cout << "FIT " << ij<< " "<<ii<<" " << gen[ii]->fitness << " " << gen[ii]->generation << " " << ik << endl;
+			cout << "FIT " << ij<< " "<<ii<<" " << gen[ii]->fitness  << " " << ik << endl;
 			sim.reset();
 		}
 
@@ -57,7 +59,7 @@ int main(int argc,char* argv[])
 		// save best
 		fname.str(std::string());
 		fname << "brain_" << ij;
-		gen[0]->saveToFile(fname.str().c_str());
+//		gen[0]->saveToFile(fname.str().c_str());
 
 		// create a new generation
 		for (ii=0; ii<GEN_SIZE; ii++)
@@ -78,17 +80,17 @@ int main(int argc,char* argv[])
 				while (parentB==parentA || parentB < 0 || parentB >= GEN_SIZE)
 					parentB = (int)dist_fit(eng);
 				cout << "mating " << parentA << " with " << parentB << endl;
-				nextgen[ii] = gen[parentA]->makeBabyWith(gen[parentB], 0.01);
+				nextgen[ii] = gen[parentA]->makeBabyWith(gen[parentB], MUTATE_BABY);
 			} else if (((float)ii)/GEN_SIZE < GEN_CLONES+GEN_BABIES) {
 				// pick a fit parent
 				parentA = -1;
 				while (parentA < 0 || parentA >= GEN_SIZE)
 					parentA = (int)dist_fit(eng);
 				cout << "cloning " << parentA << endl;
-				nextgen[ii] = gen[parentA]->clone(0.05);
+				nextgen[ii] = gen[parentA]->clone(MUTATE_CLONE);
 			} else {
 				// completely random organism
-				nextgen[ii] = new organism(true);
+				nextgen[ii] = new organism(MUTATE_NEW);
 			}
 		}
 		cout << "moving gens.." << endl;
