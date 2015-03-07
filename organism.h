@@ -16,7 +16,7 @@ class organism
 {
 public:
 	double fitness;
-	long iter;
+	std::mt19937 *eng;
 
 	// controlling parameters
 	double *params;
@@ -31,9 +31,9 @@ public:
 	// the extra is the bias node (=1)
 
 	// CONSTRUCTOR
-	organism (double mutate)
+	organism (double mutate, std::mt19937 *eng0)
 	{
-		iter = 0;
+		eng = eng0;
 		alloc = false;
 		init();
 		randomizeCoefs(mutate);
@@ -50,7 +50,7 @@ public:
 			alloc = false;
 		}
 	}
-/*
+
 	void saveToFile (const char *fname)
 	{
 		size_t size;
@@ -71,7 +71,7 @@ public:
 	
 	void readFromFile (char *fname)
 	{
-		int ii, ij, numparams;
+		int ii, ij, temp;
 		size_t sf, si;
 		char *sizebuffer, databuffer;
 		ifstream file;
@@ -82,45 +82,16 @@ public:
 		file.open(fname, ios::in | ios::binary);
 		// numparams
 		file.read(sizebuffer, si);
-		memcpy(&numparams, sizebuffer, si);
-		// errors...
-		outputs = new float [NUM_OUTPUTS];
-		// numhistory
-		history = new float [NUM_INPUTS*(NUM_HISTORY+1)];
-		// numnodes[]
-		file.read(sizebuffer, si*numlayers);
-		memcpy(numnodes, sizebuffer, si*numlayers);
-		coefs_input = new float* [numnodes[0]];
-		for (ii=0; ii<numnodes[0]; ii++)
-			coefs_input[ii] = new float [NUM_INPUTS*NUM_HISTORY+1];
-		coefs_output = new float* [NUM_OUTPUTS];
-		for (ii=0; ii<NUM_OUTPUTS; ii++)
-			coefs_output[ii] = new float [numnodes[numlayers-1]+1];
-		coefs = new float** [numlayers-1];
-		for (ii=0; ii<numlayers-1; ii++)
-		{
-			coefs[ii] = new float* [numnodes[ii+1]];
-			for (ij=0; ij<numnodes[ii+1]; ij++)
-				coefs[ii][ij] = new float [numnodes[ii]+1];
-		}
-		node = new float* [numlayers];
-		for (ii=0; ii<numlayers; ii++)
-			node[ii] = new float [numnodes[ii]];
-
-		// read coefs
-		for (ii=0; ii<numnodes[0]; ii++)
-			file.read(reinterpret_cast<char*>(coefs_input[ii]),sf*(NUM_INPUTS*NUM_HISTORY+1));
-		for (ii=0; ii<NUM_OUTPUTS; ii++)
-			file.read(reinterpret_cast<char*>(coefs_output[ii]),sf*(numnodes[numlayers-1]+1));
-		for (ii=0; ii<numlayers-1; ii++)
-			for (ij=0; ij<numnodes[ii+1]; ij++)
-				file.read(reinterpret_cast<char*>(coefs[ii][ij]),sf*(numnodes[ii]+1));
-
+		memcpy(&temp, sizebuffer, si);
+		if (temp != NUM_MODES)
+			cout << "ERROR: incorrect number of modes: " << temp << ", " << NUM_MODES << endl;
+		
+		// read params
+		file.read(reinterpret_cast<char*>(params),sf*NUM_OUTPUTS*FOURIER_PARAMS);
 
 		// all done
 		file.close();
 
-		alloc = true;
 		delete [] sizebuffer;
 	}
 
@@ -128,46 +99,25 @@ public:
 	{
 		char *buffer;
 		size_t si, sf, size;
-		int ii, ij, offset;
+		int ii, ij, offset, temp;
+
+		// num_modes (int)
+		// params (floats, (num_modes*2+1)*num_outputs)
 
 		// make room for info
 		si = sizeof(int);
 		sf = sizeof(float);
-		size = si + si*numlayers
-			+ sf*(NUM_INPUTS*NUM_HISTORY+1)*numnodes[0]
-			+ sf*((numnodes[numlayers-1]+1)*NUM_OUTPUTS);
-		for (ii=0; ii<numlayers-1; ii++)
-			size += sf*(numnodes[ii+1])*(numnodes[ii]+1);
+		size = si + sf*NUM_OUTPUTS*FOURIER_PARAMS;
 		buffer = new char [size];
 		*s = size;
 
 		// load info into buffer
 		offset = 0;
-		memcpy(buffer+offset,&numlayers,si);
+		temp = NUM_MODES;
+		memcpy(buffer+offset,&temp,si);
 		offset += si;
-		memcpy(buffer+offset,numnodes,si*numlayers);
-		offset += si*numlayers;
-		// copy input coefs
-		for (ii=0; ii<numnodes[0]; ii++)
-		{
-			memcpy(buffer+offset,coefs_input[ii],sf*(NUM_INPUTS*NUM_HISTORY+1));
-			offset += sf*(NUM_INPUTS*NUM_HISTORY+1);
-		}
-		// copy output coefs
-		for (ii=0; ii<NUM_OUTPUTS; ii++)
-		{
-			memcpy(buffer+offset,coefs_output[ii],sf*(numnodes[numlayers-1]+1));
-			offset += sf*(numnodes[numlayers-1]+1);
-		}
-		// copy middle coefs
-		for (ii=0; ii<numlayers-1; ii++)
-		{
-			for (ij=0; ij<numnodes[ii+1]; ij++)
-			{
-				memcpy(buffer+offset,coefs[ii][ij],sf*(numnodes[ii]+1));
-				offset += sf*(numnodes[ii]+1);
-			}
-		}
+		// copy params
+		memcpy(buffer+offset,params,sf*NUM_OUTPUTS*FOURIER_PARAMS);
 
 		return buffer;
 	}
@@ -186,7 +136,7 @@ public:
 		ret = str_hash(str);
 		delete [] buffer;
 		return ret;
-	}*/
+	}
 
 	// assuming inputs[] and coefs[] have been set, computes proper output
 	void computeOutputs (double theta)
@@ -199,8 +149,8 @@ public:
 			outputs[ii] = params[ii*FOURIER_PARAMS];
 			for (ij=0; ij<NUM_MODES; ij++)
 			{
-				a = params[ii*FOURIER_PARAMS+1+ij*2];
-				b = params[ii*FOURIER_PARAMS+2+ij*2];
+				a = params[ii*FOURIER_PARAMS+ij*2+1];
+				b = params[ii*FOURIER_PARAMS+ij*2+2];
 				outputs[ii] += a*cos(theta*(ij+1)) + b*sin(theta*(ij+1));
 			}
 		}
@@ -223,24 +173,33 @@ public:
 	void randomizeCoefs (double variance)
 	{
 		int ii, ij, ik;
-		std::mt19937 eng((std::random_device())());
 		if (alloc)
 		{
 			// initialize coefs randomly
 			std::normal_distribution<double> dist_norm(0.0, variance);
-			for (ii=0; ii<FOURIER_PARAMS; ii++)
-				params[ii] = dist_norm(eng);
+			for (ii=0; ii<FOURIER_PARAMS*NUM_OUTPUTS; ii++)
+				params[ii] = dist_norm(*eng);
 		}
 	}
 
 
 	organism* makeBabyWith (organism *mate, double mutation)
 	{
+		int ii, crossover;
+		std::normal_distribution<double> dist(0.0,mutation);
+		std::uniform_int_distribution<int> dist_int(1,NUM_OUTPUTS*FOURIER_PARAMS-2);
 		organism *ret;
 
-		ret = new organism(0.0);
+		ret = new organism(0.0, eng);
 
-		// implement
+		// pick crosspver point
+		crossover = dist_int(*eng);
+
+		for (ii=0; ii<crossover; ii++)
+			ret->params[ii] = params[ii] + dist(*eng);
+		for (ii=crossover; ii<NUM_OUTPUTS*FOURIER_PARAMS; ii++)
+			ret->params[ii] = mate->params[ii] + dist(*eng);
+
 
 		return ret;
 	}
@@ -254,10 +213,13 @@ public:
 		int ii, ij, ik;
 		int common, common2, common3;
 		organism *ret;
+		std::normal_distribution<double> dist(0.0,mutation);
 
-		ret = new organism(0.0);
+		ret = new organism(0.0, eng);
 
-		// implement
+		for (ii=0; ii<NUM_OUTPUTS*FOURIER_PARAMS; ii++)
+			ret->params[ii] = params[ii] + dist(*eng);
+	
 
 		return ret;
 	}

@@ -10,11 +10,14 @@ bool compareOrganisms (organism *a, organism *b) {return (a->fitness>b->fitness)
 
 int main(int argc,char* argv[])
 {
-	int ii, ij, ik, parentA, parentB;
+	int ii, ij, ik, il;
+	int genind, parentA, parentB;
+	double genpos;
 	stringstream fname;
   HexSim sim;
-	vector<organism*> gen, nextgen;
-	organism *bob;
+	vector<organism*> gen[NUM_COMMUNITIES];
+	vector<organism*> newgen[NUM_COMMUNITIES];
+	organism *best;
 	vector<float> vals, probs;
 	ofstream file;
 
@@ -22,91 +25,91 @@ int main(int argc,char* argv[])
 
 	// initialize random number generators
 	std::mt19937 eng((std::random_device())());
-	std::exponential_distribution<float> dist_exp(3.0/GEN_SIZE);
-	vals.resize(GEN_SIZE+1);
-	for (ii=0; ii<GEN_SIZE+1; ii++)
-		vals[ii] = (float)ii;
-	probs.resize(GEN_SIZE);
+	std::normal_distribution<double> dist_norm(0.0,1.0);
+	std::uniform_int_distribution<int> dist_int(0,GEN_SIZE/2);
+	std::uniform_real_distribution<double> dist_real(0,1);
+
 
 	// populate first generation
-	for (ii=0; ii<GEN_SIZE; ii++)
+	for (ii=0; ii<NUM_COMMUNITIES; ii++)
 	{
-		gen.push_back(new organism(MUTATE_NEW));
+		for (ij=0; ij<GEN_SIZE; ij++)
+			gen[ii].push_back(new organism(MUTATION_NEW, &eng));
+		newgen[ii].resize(GEN_SIZE);
 	}
-	nextgen.resize(GEN_SIZE);
+
+	file.open("fitness");
 
 	// iterate generations
-	for (ij=0; ij<NUM_GENS; ij++)
+	for (ii=0; ii<NUM_GENS; ii++)
 	{
-		// march through each organism in the current generation
-		for (ii=0; ii<GEN_SIZE; ii++)
+		cout << "gen " << ii << endl;
+		for (ij=0; ij<NUM_COMMUNITIES; ij++)
 		{
-			sim.attachOrganism(gen[ii]);
-			// let organism flail around a while
-			for (ik=0; ik<5000&&!sim.converged; ik++)
-				sim.stepSimulation(0.01, 1);
-
-			gen[ii]->fitness = sim.getFitness();
-			cout << "FIT " << ij<< " "<<ii<<" " << gen[ii]->fitness  << " " << ik << endl;
-			sim.reset();
-		}
-
-		sort(gen.begin(), gen.end(), compareOrganisms);
-
-		cout << endl;
-		cout << "MAX " << ij << " " << gen[0]->fitness << " " << endl << endl;
-
-		// save best
-		fname.str(std::string());
-		fname << "brain_" << ij;
-//		gen[0]->saveToFile(fname.str().c_str());
-
-		// create a new generation
-		for (ii=0; ii<GEN_SIZE; ii++)
-			probs[ii] = pow(max(gen[ii]->fitness, 0.01),SELECTION_STRENGTH);
-
-		
-		std::piecewise_constant_distribution<float> 
-			dist_fit(vals.begin(),vals.end(),probs.begin());
-		for (ii=0; ii<GEN_SIZE; ii++)
-		{
-			if (((float)ii)/GEN_SIZE < GEN_BABIES)
+			for (ik=0; ik<GEN_SIZE; ik++)
 			{
-				// pick two fit parents
-				parentA = -1;
-				parentB = -1;
-				while (parentA < 0 || parentA >= GEN_SIZE)
-					parentA = (int)dist_fit(eng);
-				while (parentB==parentA || parentB < 0 || parentB >= GEN_SIZE)
-					parentB = (int)dist_fit(eng);
-				cout << "mating " << parentA << " with " << parentB << endl;
-				nextgen[ii] = gen[parentA]->makeBabyWith(gen[parentB], MUTATE_BABY);
-			} else if (((float)ii)/GEN_SIZE < GEN_CLONES+GEN_BABIES) {
-				// pick a fit parent
-				parentA = -1;
-				while (parentA < 0 || parentA >= GEN_SIZE)
-					parentA = (int)dist_fit(eng);
-				cout << "cloning " << parentA << endl;
-				nextgen[ii] = gen[parentA]->clone(MUTATE_CLONE);
-			} else {
-				// completely random organism
-				nextgen[ii] = new organism(MUTATE_NEW);
+				// evolve to evaluate fitness
+				sim.attachOrganism(gen[ij][ik]);
+				for (il=0; il<1000&&!sim.converged; il++)
+					sim.stepSimulation(0.01, 1);
+				gen[ij][ik]->fitness = sim.getFitness();
+				file << ii << " " << ik << " " << gen[ij][ik]->fitness << endl;
+				sim.reset();
 			}
-		}
-		cout << "moving gens.." << endl;
-		// copy next gen to curr gen
-		for (ii=0; ii<GEN_SIZE; ii++)
-		{
-			delete gen[ii];
-			gen[ii] = nextgen[ii];
+
+			// sort generation by fitness
+			sort(gen[ij].begin(), gen[ij].end(), compareOrganisms);
+			if (ij==0)
+			{
+				fname.str(std::string());
+				fname << "brain_" << ij;
+				gen[ij][0]->saveToFile(fname.str().c_str());
+			}
+
+			// create a new generation
+			for (ij=0; ij<NUM_COMMUNITIES; ij++)
+			{
+				for (ik=0; ik<GEN_SIZE; ik++)
+				{
+					// pick parents
+					parentA = dist_int(eng);
+					parentB = parentA;
+					while (parentB == parentA)
+						parentB = dist_int(eng);
+					// chance of cross-community breeding
+					genind = ij;
+					if (dist_real(eng) < COMMUNITY_MIXING)
+						genind = (int)(dist_real(eng)*NUM_COMMUNITIES);
+
+					// decide what to do with them
+					genpos = ((double)ik)/((double)GEN_SIZE);
+					if (genpos < FRAC_BABIES)
+					{
+						newgen[ij][ik] = gen[ij][parentA]->makeBabyWith(gen[genind][parentB], 
+								MUTATION_BABY);
+					} else if (genpos < FRAC_BABIES + FRAC_CLONES) {
+						newgen[ij][ik] = gen[ij][parentA]->clone(MUTATION_CLONE);
+					} else {
+						newgen[ij][ik] = new organism(MUTATION_NEW, &eng);
+					}
+				}
+				// delete old generation, copy over new one
+				for (ik=0; ik<GEN_SIZE; ik++)
+				{
+					delete gen[ij][ik];
+					gen[ij][ik] = newgen[ij][ik];
+				}
+
+			}
+
 		}
 	}
 
-	bob = gen[0]->clone(0.0);
-	sim.attachOrganism(bob);
+	file.close();
+
+	best = gen[0][0]->clone(0.0);
+	sim.attachOrganism(best);
 	// clear out generation
-	for (ii=0; ii<GEN_SIZE; ii++)
-		delete gen[ii];
   //return 0;
 	return glutmain(argc, argv, 1280, 960, "HexSim", &sim);
 }

@@ -32,21 +32,22 @@
 #define HISTORY_SKIP 5
 
 // Fourier series controller
-#define NUM_MODES 1
+#define NUM_MODES 3
 #define FOURIER_PARAMS (NUM_MODES*2+1)
 
 // analysis
 #define NUM_GENS 1
-#define GEN_SIZE 4
+#define GEN_SIZE 10
+#define NUM_COMMUNITIES 1
+#define COMMUNITY_MIXING 0.0
 #define STATS_SKIP 20
-#define SELECTION_STRENGTH 1.0
 
 // generation fractions
-#define GEN_RANDOM 0.1
-#define GEN_CLONES 0.1
-#define GEN_BABIES 0.8
+#define FRAC_NEW 0.0
+#define FRAC_CLONES 0.1
+#define FRAC_BABIES 0.9
 
 // mutation amounts
-#define MUTATE_BABY 0.01
-#define MUTATE_CLONE 0.01
-#define MUTATE_NEW 1.0
+#define MUTATION_BABY 0.01
+#define MUTATION_CLONE 0.01
+#define MUTATION_NEW 0.5
