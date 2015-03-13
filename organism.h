@@ -72,11 +72,12 @@ public:
 	void readFromFile (char *fname)
 	{
 		int ii, ij, temp;
-		size_t sf, si;
+		size_t sf, si, sd;
 		char *sizebuffer, databuffer;
 		ifstream file;
 		
 		sf = sizeof(float);
+		sd = sizeof(double);
 		si = sizeof(int);
 		sizebuffer = new char [1024];
 		file.open(fname, ios::in | ios::binary);
@@ -87,7 +88,10 @@ public:
 			cout << "ERROR: incorrect number of modes: " << temp << ", " << NUM_MODES << endl;
 		
 		// read params
-		file.read(reinterpret_cast<char*>(params),sf*NUM_OUTPUTS*FOURIER_PARAMS);
+		file.read(reinterpret_cast<char*>(params),sd*NUM_OUTPUTS*FOURIER_PARAMS);
+		cout << "size " << NUM_OUTPUTS*FOURIER_PARAMS << endl;
+		for (ii=0; ii<NUM_OUTPUTS*FOURIER_PARAMS; ii++)
+			cout << ii << " " << params[ii] << endl;
 
 		// all done
 		file.close();
@@ -98,7 +102,7 @@ public:
 	char *packData (size_t *s)
 	{
 		char *buffer;
-		size_t si, sf, size;
+		size_t si, sf, size, sd;
 		int ii, ij, offset, temp;
 
 		// num_modes (int)
@@ -107,7 +111,8 @@ public:
 		// make room for info
 		si = sizeof(int);
 		sf = sizeof(float);
-		size = si + sf*NUM_OUTPUTS*FOURIER_PARAMS;
+		sd = sizeof(double);
+		size = si + sd*NUM_OUTPUTS*FOURIER_PARAMS;
 		buffer = new char [size];
 		*s = size;
 
@@ -117,7 +122,7 @@ public:
 		memcpy(buffer+offset,&temp,si);
 		offset += si;
 		// copy params
-		memcpy(buffer+offset,params,sf*NUM_OUTPUTS*FOURIER_PARAMS);
+		memcpy(buffer+offset,params,sd*NUM_OUTPUTS*FOURIER_PARAMS);
 
 		return buffer;
 	}
