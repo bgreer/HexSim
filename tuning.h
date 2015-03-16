@@ -32,7 +32,7 @@
 #define HISTORY_SKIP 5
 
 // Fourier series controller
-#define NUM_MODES 0
+#define NUM_MODES 16
 #define FOURIER_PARAMS (NUM_MODES*2+1)
 
 // analysis

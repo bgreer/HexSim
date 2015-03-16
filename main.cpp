@@ -62,7 +62,7 @@ int main(int argc,char* argv[])
 			if (ij==0)
 			{
 				fname.str(std::string());
-				fname << "brain_" << ij;
+				fname << "brain_" << ii;
 				gen[ij][0]->saveToFile(fname.str().c_str());
 			}
 

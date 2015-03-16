@@ -203,7 +203,7 @@ void HexSim::setMotorTargets(btScalar deltaTime)
 	*/
 
 	// use ANN to compute targets
-	org->computeOutputs(currtime*2.*PI/3.);
+	org->computeOutputs(currtime*2.*PI/5.);
 	
 	// set leg motors
 	for (ii=0; ii<3*NUM_LEGS; ii++)

@@ -10,7 +10,7 @@ using namespace std;
 #include <fstream>
 #include "tuning.h"
 
-#define NUM_OUTPUTS NUM_LEGS*3*FOURIER_PARAMS
+#define NUM_OUTPUTS NUM_LEGS*3
 
 class organism
 {
