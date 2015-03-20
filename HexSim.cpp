@@ -43,6 +43,7 @@ void motorPreTickCallback (btDynamicsWorld *world, btScalar timeStep)
 {
 	HexSim* sim = (HexSim*)world->getWorldUserInfo();
 	sim->setMotorTargets(timeStep);
+
 }
 void	postTickCallback(btDynamicsWorld *world, btScalar timeStep)
 {
@@ -73,14 +74,21 @@ void HexSim::computeStats (btScalar timeStep)
 	motors = 0.0;
 	for (ii=0; ii<NUM_LEGS*3; ii++)
 		motors += fabs(servo_joint[ii]->getMotorSpeed())/SERVO_MAX_MOTORSPEED;
-	/*
-	fitness += satFunc(vel.getX(),10.0)
+	
+	// walk
+	/*fitness += satFunc(vel.getX(),10.0)
 			* satFunc(pos.getY(),0.5)
 			* (1.0-satFunc(motors,NUM_LEGS*3.))
 			* satFunc(PI_2-angle,PI_2);
 	*/
+
+	// stand up
 	fitness += pow(pos.getY(),2.0);
-//	fitness += 0.01 * pow(pos.getY(),4.0); // get air
+
+	// stand up, stay still
+	//fitness += pow(pos.getY(),2.0) * (1.0-satFunc(motors,NUM_LEGS*3.));
+	
+	//	fitness += 0.01 * pow(pos.getY(),4.0); // get air
 
 	// only print stats every now and then
 	if (iter % STATS_SKIP == 0)
@@ -88,8 +96,6 @@ void HexSim::computeStats (btScalar timeStep)
 		
 		// check convergence
 		// if oranism can't move at all, gets eaten quickly
-//		if (currtime > 5.0 && pos.getZ()/currtime < 0.2)
-//			converged = true;
 		if (currtime > 5.0 && pos.getY() < 0.3) converged = true;
 	}
 //	usleep(1000000);
@@ -190,6 +196,8 @@ void HexSim::setMotorTargets(btScalar deltaTime)
 	int ii, ij, ind;
 	float val, amp, phi;
 	btHingeConstraint *hinge;
+	btVector3 pos;
+	static btVector3 smoothpos = rig->getBodyPosition();
 
 	// set nn inputs;
 	/*
@@ -211,6 +219,10 @@ void HexSim::setMotorTargets(btScalar deltaTime)
 		servo_joint[ii]->setTarget(org->outputs[ii] + PI);
 		servo_joint[ii]->setMotorSpeed();
 	}
+	pos = rig->getBodyPosition();
+	smoothpos = 0.95*smoothpos + 0.05*pos;
+	m_cameraTargetPosition = smoothpos;
+	updateCamera();
 }
 
 void HexSim::clientMoveAndDisplay()
